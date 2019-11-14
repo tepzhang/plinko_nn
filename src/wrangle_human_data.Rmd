@@ -1,0 +1,79 @@
+---
+title: "wrangle human data"
+author: "Jinxiao Zhang"
+date: "November 13, 2019"
+output: html_document
+---
+
+```{r load packages}
+library(tidyverse)
+library(png)
+library(grid)
+```
+
+```{r write human data to csv}
+## human experiment data
+path_tobi_data <- "C:/Users/tepzh/Dropbox/Stanford/CS229 machine learning/project/plinko_traking_Tobi/plinko_tracking/code/R/plinko_eye_tracking_data.RData"
+path_data_nn <- "C:/Users/tepzh/Dropbox/Stanford/CS229 machine learning/project/plinko_nn/data"
+
+load(path_tobi_data)
+
+# write the data to csv
+write_csv(df.data %>% filter(experiment == "vision"), 
+          str_c(path_data_nn, "/experiment1/eye_tracking_data.csv"))
+write_csv(df.data %>% filter(experiment == "vision_sound"), 
+          str_c(path_data_nn, "/experiment2/eye_tracking_data.csv"))
+```
+
+```{r plot eye-tracking data} 
+# function to plot heatmaps of eye fixations in a trial
+plot_eye_heatmap <- function(experiment, participant, trial){
+  # Individual trial ------------------------------------------------------------------
+  averaging_window = 20
+  
+  df.trial = df.data %>% 
+    filter(experiment == experiment_name,
+           participant == participant_index,
+           trial == trial_index) %>% 
+    # filter(row_number() <= (floor(nrow(.) / averaging_window) * averaging_window)) %>% 
+    # mutate(index = rep(1 : (nrow(.) / averaging_window), each = averaging_window)) %>% 
+    # group_by(index) %>% 
+    # summarize(x = mean(x),
+    #           y = mean(y),
+    #           p = mean(p)) %>% 
+    filter(x > 0, y > 0)
+  
+  
+  image = readPNG(str_c("C:/Users/tepzh/Dropbox/Stanford/CS229 machine learning/project/plinko_traking_Tobi/plinko_tracking/figures/images/png/final/world_", trial_index , ".png"))
+  
+  ggplot(df.trial, aes(x = x, y = y))+
+    annotation_custom(rasterGrob(image,
+                                 width = unit(1,"npc"),
+                                 height = unit(1,"npc")),
+                      -Inf, Inf, -Inf, Inf) +
+    # stat_density_2d(aes(fill = ..density..), geom = "raster",
+    #                 alpha=.7, contour = FALSE)+
+    stat_density_2d(aes(fill = ..level.., alpha = ..level..), geom = "polygon")+
+    geom_point(alpha = .3)+
+    scale_fill_distiller(palette=4, direction=1) +
+    scale_x_continuous(limits = c(0, 600), expand = c(0, 0)) +
+    scale_y_continuous(limits = c(0, 500), expand = c(0, 0)) +
+    theme_void()+
+    theme(legend.position='none')+
+    scale_alpha_continuous(range=c(0.3,0.7))
+  
+  ggsave(str_c("../figures/plots/participant", participant_index,
+               "_trial", trial_index, ".png"), width = 6, height = 5)
+}
+
+
+
+## plot eye-tracking data
+experiment_name = "vision"
+participant_index = 1
+trial_index = 5
+
+plot_eye_heatmap(experiment_name, participant_index, trial_index)
+```
+
+
