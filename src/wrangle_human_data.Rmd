@@ -26,6 +26,7 @@ write_csv(df.data %>% filter(experiment == "vision_sound"),
 ```
 
 ```{r plot eye-tracking data} 
+
 # function to plot heatmaps of eye fixations in a trial
 plot_eye_heatmap <- function(experiment, participant, trial){
   # Individual trial ------------------------------------------------------------------
@@ -70,8 +71,8 @@ plot_eye_heatmap <- function(experiment, participant, trial){
 
 ## plot eye-tracking data
 experiment_name = "vision"
-participant_index = 1
-trial_index = 5
+participant_index = 3
+trial_index = 4
 
 plot_eye_heatmap(experiment_name, participant_index, trial_index)
 ```
