@@ -14,7 +14,9 @@ library(grid)
 ```{r write human data to csv}
 ## human experiment data
 path_tobi_data <- "C:/Users/tepzh/Dropbox/Stanford/CS229 machine learning/project/plinko_traking_Tobi/plinko_tracking/code/R/plinko_eye_tracking_data.RData"
-path_data_nn <- "C:/Users/tepzh/Dropbox/Stanford/CS229 machine learning/project/plinko_nn/data"
+path_project_nn <- "C:/Users/tepzh/Dropbox/Stanford/CS229 machine learning/project/plinko_nn"
+
+path_data_gdrive <- "C:/Users/tepzh/Google Drive/CS236_CS229 project/data"
 
 load(path_tobi_data)
 
@@ -76,5 +78,20 @@ trial_index = 4
 
 plot_eye_heatmap(experiment_name, participant_index, trial_index)
 ```
+
+
+
+```{r write stimuli data}
+path_tobi_stimuli <- "C:/Users/tepzh/Dropbox/Stanford/CS229 machine learning/project/plinko_traking_Tobi/plinko_tracking/data/experiment_1/stimuli"
+
+load(str_c(path_tobi_stimuli, "/summary/ground_truth.RData"))
+
+
+write_csv(df.paths, str_c(path_data_gdrive, "/worlds/ball_path.csv"))
+write_csv(df.obstacles, str_c(path_data_gdrive, "/worlds/obstacle_positions.csv"))
+write_csv(df.collisions, str_c(path_data_gdrive, "/worlds/collision_times.csv"))
+
+```
+
 
 
