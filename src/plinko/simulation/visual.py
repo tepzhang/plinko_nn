@@ -18,7 +18,7 @@ from . import utils
 
 def main():
     c = config.get_config()
-    # c = utils.load_config("data/json/world_1777.json")
+    # c = misc.load_config("data/json/world_1777.json")
     c = utils.load_config("data/json/world_6.json")
     sim_data = engine.run_simulation(c)
     visualize(c, sim_data)
