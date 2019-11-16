@@ -24,7 +24,7 @@ inverse_shape_code = {shape_code[key]: key for key in shape_code}
 def main():
     # c = config.get_config() # generate config
     c = utils.load_config("data/cases/ground_truth/world_309.json")  # load a config file
-    # c = utils.load_config("data/json/world_6541.json")  # load a config file
+    # c = misc.load_config("data/json/world_6541.json")  # load a config file
     c['hole_dropped_into'] = 1
     c['drop_noise'] = 0
     c['collision_noise_mean'] = 1
@@ -35,14 +35,14 @@ def main():
     visual.visualize(c, data)
 
 
-# tmp = utils.loss(prop = 0, target = 50, sd = 2)
+# tmp = misc.loss(prop = 0, target = 50, sd = 2)
 # print("tmp", tmp)
 # pass
 # path_screenshot_write = 'data/images/pygame'
 # for world in range(1,201):
 # world = 6
 # for i in range(0,5):
-# 	c = utils.load_config("data/json/world_" + str(world) + ".json")
+# 	c = misc.load_config("data/json/world_" + str(world) + ".json")
 # 	c['hole_dropped_into'] = 1
 # 	# c['drop_noise'] = 0
 # 	# c['collision_noise_mean'] = 1
