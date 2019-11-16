@@ -44,23 +44,33 @@ write_csv(df.data_summary, str_c(path_data_gdrive, "/human_data_summary.csv"))
 # function to plot heatmaps of eye fixations in a trial
 plot_eye_path <- function(experiment, participant, trial){
   # Individual trial ------------------------------------------------------------------
-  message(str_c("plotting participant_", participant, " trial_", trial))
-  averaging_window = 10
+  print(str_c("plotting participant_", participant, " trial_", trial))
+  averaging_window = 5
   
   df.trial = df.data %>% 
     filter(experiment == experiment_name,
            participant == participant_index,
-           trial == trial_index) %>% 
+           trial == trial_index) 
+  
+  response = df.trial$response[1]
+  rt = df.trial$t[nrow(df.trial)] /1000
+  
+  df.trial = df.trial%>% 
     filter(row_number() <= (floor(nrow(.) / averaging_window) * averaging_window)) %>%
     mutate(index = rep(1 : (nrow(.) / averaging_window), each = averaging_window)) %>%
     group_by(index) %>%
     summarize(x = mean(x),
               y = mean(y),
-              p = mean(p)) %>%
+              p = mean(p),
+              step = step[1]) %>%
     filter(x > 0, y > 0)
   
   
   image = readPNG(str_c("C:/Users/tepzh/Dropbox/Stanford/CS229 machine learning/project/plinko_traking_Tobi/plinko_tracking/figures/images/png/final/world_", trial_index , ".png"))
+  
+  hole_position = data.frame(x = c(150, 300, 450), 
+                             y = c(475, 475, 475), 
+                             hole = c(1, 2, 3))
   
   ggplot(df.trial, aes(x = x, y = y))+
     annotation_custom(rasterGrob(image,
@@ -69,6 +79,13 @@ plot_eye_path <- function(experiment, participant, trial){
                       -Inf, Inf, -Inf, Inf) +
     # stat_density_2d(aes(fill = ..level.., alpha = ..level..), geom = "polygon")+
     # scale_fill_distiller(palette=4, direction=1) +
+    geom_point(data = hole_position %>% filter(hole == response),
+               aes(x = x, y = y),
+               color = "black", fill = "white", 
+               shape = 21, size = 6)+
+    annotate(geom="text", x=20, y=480, hjust = 0, color = "white", 
+             size= 3, fontface="bold",
+             label= str_c("RT: ", round(rt, digit = 1), "s")) +
     geom_point(aes(color = step), alpha = .3)+
     geom_path(aes(color = step), alpha = .3)+
     scale_x_continuous(limits = c(0, 600), expand = c(0, 0)) +
@@ -78,10 +95,10 @@ plot_eye_path <- function(experiment, participant, trial){
     theme(legend.position='none')+
     scale_alpha_continuous(range=c(0.3,0.7))
   
-  # ggsave(str_c("../figures/plots/heat_map/participant", participant_index,
+  # ggsave(str_c("../figures/plots/heatmap/participant", participant_index,
   #              "_trial", trial_index, ".png"), width = 6, height = 5)
   ggsave(str_c("../figures/plots/eye_path/participant", participant_index,
-               "_trial", trial_index, "_path.png"), width = 6, height = 5)
+               "_trial", trial_index, "_path.png"), width = 3, height = 2.5)
 }
 
 
