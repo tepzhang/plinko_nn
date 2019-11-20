@@ -1,0 +1,135 @@
+---
+title: "wrangle human data"
+author: "Jinxiao Zhang"
+date: "November 13, 2019"
+output: html_document
+---
+
+```{r load packages}
+library(tidyverse)
+library(png)
+library(grid)
+```
+
+```{r write human data to csv}
+## human experiment data
+path_tobi_data <- "C:/Users/tepzh/Dropbox/Stanford/CS229 machine learning/project/plinko_traking_Tobi/plinko_tracking/code/R/plinko_eye_tracking_data.RData"
+path_project_nn <- "C:/Users/tepzh/Dropbox/Stanford/CS229 machine learning/project/plinko_nn"
+
+path_data_gdrive <- "C:/Users/tepzh/Google Drive/CS236_CS229 project/data"
+
+load(path_tobi_data)
+
+# write the data to csv
+write_csv(df.data %>% filter(experiment == "vision"), 
+          str_c(path_data_gdrive, "/experiment1/eye_tracking_data.csv"))
+write_csv(df.data %>% filter(experiment == "vision_sound"), 
+          str_c(path_data_gdrive, "/experiment2/eye_tracking_data.csv"))
+
+# summary of human data
+df.data_summary <- df.data %>% 
+  group_by(experiment, participant) %>% 
+  summarise(trial_count = unique(trial) %>% length(),
+            average_eye_fix = n() / trial_count)
+
+# df.data_summary %>% group_by(experiment) %>% 
+#   summarise(eye_fix_count = mean(average_eye_fix))
+
+write_csv(df.data_summary, str_c(path_data_gdrive, "/human_data_summary.csv"))
+```
+
+
+```{r plot eye-tracking data} 
+
+# function to plot heatmaps of eye fixations in a trial
+plot_eye_path <- function(experiment, participant, trial){
+  # Individual trial ------------------------------------------------------------------
+  print(str_c("plotting participant_", participant, " trial_", trial))
+  averaging_window = 5
+  
+  df.trial = df.data %>% 
+    filter(experiment == experiment_name,
+           participant == participant_index,
+           trial == trial_index) 
+  
+  response = df.trial$response[1]
+  rt = df.trial$t[nrow(df.trial)] /1000
+  
+  df.trial = df.trial%>% 
+    filter(row_number() <= (floor(nrow(.) / averaging_window) * averaging_window)) %>%
+    mutate(index = rep(1 : (nrow(.) / averaging_window), each = averaging_window)) %>%
+    group_by(index) %>%
+    summarize(x = mean(x),
+              y = mean(y),
+              p = mean(p),
+              step = step[1]) %>%
+    filter(x > 0, y > 0)
+  
+  
+  image = readPNG(str_c("C:/Users/tepzh/Dropbox/Stanford/CS229 machine learning/project/plinko_traking_Tobi/plinko_tracking/figures/images/png/final/world_", trial_index , ".png"))
+  
+  hole_position = data.frame(x = c(150, 300, 450), 
+                             y = c(475, 475, 475), 
+                             hole = c(1, 2, 3))
+  
+  ggplot(df.trial, aes(x = x, y = y))+
+    annotation_custom(rasterGrob(image,
+                                 width = unit(1,"npc"),
+                                 height = unit(1,"npc")),
+                      -Inf, Inf, -Inf, Inf) +
+    # stat_density_2d(aes(fill = ..level.., alpha = ..level..), geom = "polygon")+
+    # scale_fill_distiller(palette=4, direction=1) +
+    geom_point(data = hole_position %>% filter(hole == response),
+               aes(x = x, y = y),
+               color = "black", fill = "white", 
+               shape = 21, size = 6)+
+    annotate(geom="text", x=20, y=480, hjust = 0, color = "white", 
+             size= 3, fontface="bold",
+             label= str_c("RT: ", round(rt, digit = 1), "s")) +
+    geom_point(aes(color = step), alpha = .3)+
+    geom_path(aes(color = step), alpha = .3)+
+    scale_x_continuous(limits = c(0, 600), expand = c(0, 0)) +
+    scale_y_continuous(limits = c(0, 500), expand = c(0, 0)) +
+    scale_color_gradient(low="black", high="white")+
+    theme_void()+
+    theme(legend.position='none')+
+    scale_alpha_continuous(range=c(0.3,0.7))
+  
+  # ggsave(str_c("../figures/plots/heatmap/participant", participant_index,
+  #              "_trial", trial_index, ".png"), width = 6, height = 5)
+  ggsave(str_c("../figures/plots/eye_path/participant", participant_index,
+               "_trial", trial_index, "_path.png"), width = 3, height = 2.5)
+}
+
+
+
+## plot eye-tracking data
+world_indices = df.data$trial %>% unique()
+participant_indices = df.data$participant[df.data$experiment == "vision"] %>% unique()
+
+for (participant in participant_indices){
+  experiment_name = "vision"
+  participant_index = participant
+  trial_index = 4
+  
+  plot_eye_path(experiment_name, participant_index, trial_index)
+}
+
+```
+
+
+
+```{r write stimuli data}
+path_tobi_stimuli <- "C:/Users/tepzh/Dropbox/Stanford/CS229 machine learning/project/plinko_traking_Tobi/plinko_tracking/data/experiment_1/stimuli"
+
+load(str_c(path_tobi_stimuli, "/summary/ground_truth.RData"))
+
+
+write_csv(df.paths, str_c(path_data_gdrive, "/worlds/ball_path.csv"))
+write_csv(df.obstacles, str_c(path_data_gdrive, "/worlds/obstacle_positions.csv"))
+write_csv(df.collisions, str_c(path_data_gdrive, "/worlds/collision_times.csv"))
+
+```
+
+
+

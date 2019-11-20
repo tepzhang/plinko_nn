@@ -1,0 +1,73 @@
+---
+title: "plot simulations"
+author: "Jinxiao Zhang"
+date: "November 18, 2019"
+output: html_document
+---
+
+```{r load packages}
+library(feather)
+library(tidyverse)
+```
+
+```{r set file paths}
+path_simulations <- "../../data/simulations"
+```
+
+```{r read data}
+simulations_ball <- read_feather(str_c(path_simulations, "/sim_ball.feather"))
+simulations_ball %>% glimpse()
+simulations_ball %>% names()
+
+simulation_collisions <- read_feather(str_c(path_simulations, "/sim_collisions.feather"))
+simulation_environment <- read_feather(str_c(path_simulations,
+                                             "/sim_environment.feather"))
+# ht_ball <- read_feather(str_c(path_simulations, "/ht_ball.feather"))
+```
+
+```{r plot simulation}
+plot_simulation <- function(sim_ball, sim_env, sim_index){
+  # obstacle shape: triangle - triangle, rectangle - square, pentagon - circle
+  print(str_c("plotting ", sim_index))
+  
+  one_simulation <- sim_ball %>% 
+    filter(simulation == sim_index) %>% 
+    mutate(run = as.factor(run))
+  
+  one_enviroment <- sim_env %>% 
+    filter(simulation == sim_index) %>% 
+    gather(key, position, -simulation, -hole_dropped_into) %>% 
+    separate(key, into = c("obs_shape", "axis")) %>% 
+    spread(axis, position) %>% 
+    mutate(obs_shape_num = case_when(obs_shape == "triangle" ~ "24",
+                                     obs_shape == "rectangle" ~ "23",
+                                     obs_shape == "pentagon" ~ "21"))
+  
+  ggplot(one_simulation, aes(px, py, color = run))+
+    geom_point(data = one_enviroment, 
+               aes(x, y, shape = obs_shape, fill = obs_shape),
+               size = 8, color = "black")+
+    scale_shape_manual(values=c(21, 23, 24))+
+    geom_point(alpha = .3, size = .5)+
+    geom_path(alpha = .3) +
+    scale_x_continuous(limits = c(50, 700), expand = c(0, 0)) +
+    scale_y_continuous(limits = c(50, 650), expand = c(0, 0)) +
+    theme(legend.position='none',
+          axis.title = element_blank(),
+          panel.border = element_rect(colour = "black", fill=NA, size=2))
+  
+  ggsave(str_c("../../figures/plots/simulations/", sim_index,
+               ".png"), width = 3, height = 2.5)
+  }
+
+
+# plot simulations
+sim_indices = simulation_environment$simulation %>% unique()
+temp_result <- sapply(sim_indices[1:20], 
+       function(x) plot_simulation(sim_ball = simulations_ball,
+       sim_env = simulation_environment,
+       sim_index = x))
+```
+
+
+
