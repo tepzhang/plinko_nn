@@ -45,7 +45,7 @@ class GRUPredictor(nn.Module):
         At each t, given the true state at t, predict the distribution for t+1
         """
         batch_size, t, state_size = states.shape
-        h_n = torch.zeros(self.gru.num_layers, batch_size, self.hidden_size, dtype=float, device=h_env.device)
+        h_n = torch.zeros(self.gru.num_layers, batch_size, self.hidden_size, dtype=torch.float, device=h_env.device)
 
         h_env = utils.expand_along_dim(h_env, t, 0)
         states = states.permute(1, 0, 2)
