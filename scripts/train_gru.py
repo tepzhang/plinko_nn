@@ -18,7 +18,7 @@ from plinko.misc import data_utils
 from plinko.misc.simulation_dataset import SimulationDataset
 from plinko.model.predictor_gru import GRUPredictor
 
-def loaddata(run_indices = range(20)):
+def loaddata(run_indices = range(20), outdf = False):
     df_ball = pd.read_feather('../data/simulations/sim_ball.feather')
     df_env = pd.read_feather('../data/simulations/sim_environment.feather')
     df_col = pd.read_feather('../data/simulations/sim_collisions.feather')
@@ -30,7 +30,10 @@ def loaddata(run_indices = range(20)):
                              & (sim_data.duration < 50)
                              & np.in1d(sim_data.run,run_indices)]
     simulations, environments = data_utils.create_task_df(selected_runs, df_ball, df_env, append_t0 = False)
-    states, envs = data_utils.to_tensors(simulations, environments, device)
+    if outdf:
+        states, envs, simulations, environments = data_utils.to_tensors(simulations, environments, device, outdf)
+    else:
+        states, envs = data_utils.to_tensors(simulations, environments, device, outdf)
     return states, envs, simulations, environments
 
 def get_logp_loss(gm, targets):
@@ -45,7 +48,7 @@ def train_model(model,optimizer,simulations,dataset,savename = 'gru.model'):
     dataloader = DataLoader(dataset, batch_size=64, shuffle=True)
 
     max_t = simulations.t.max()
-    epochs = 100
+    epochs = 1
     losses = []
     for epoch in tqdm(range(epochs + 1)):
         epoch_loss = 0
@@ -75,7 +78,7 @@ def train_model(model,optimizer,simulations,dataset,savename = 'gru.model'):
     torch.save(model.state_dict(), savename)
     return model
 
-def simulate_model(model,dataset,modelname = 'gru1'):
+def simulate_model(model,dataset,sim_df, env_df,modelname = 'gru1'):
     dataloader = DataLoader(dataset, batch_size=len(envs), shuffle=True)
     i = 0
     for batch in dataloader:
@@ -83,7 +86,7 @@ def simulate_model(model,dataset,modelname = 'gru1'):
         with torch.no_grad():
             inter_gm, extra_gm, samples = model(batch['envs'], batch['states'][:, :1], 100)
             targets = batch['targets'][:,1:101]
-            df_env, df_ball = data_utils.create_simdata_from_samples(samples, batch['envs'])
+            df_env, df_ball = data_utils.create_simdata_from_samples(samples, batch['envs'],sim_df, env_df)
             df_ball.to_feather(os.path.join('../experiments/' + modelname + '/batch{}'.format(i) + 'samp.feather'))
             df_env.to_feather(os.path.join('../experiments/' + modelname + '/batch_{}'.format(i) + 'envs.feather'))
 
@@ -99,7 +102,7 @@ if __name__ == '__main__':
     epsilon = sys.float_info.epsilon
 
     # load data
-    states, envs, simulations, environments = loaddata()
+    states, envs, sim_df, env_df = loaddata(run_indices = range(20), outdf = True)
     dataset = SimulationDataset(envs, states)
 
     # define model
@@ -108,7 +111,7 @@ if __name__ == '__main__':
     # train model;
     # optimizer = optim.SGD(model.parameters(), lr=.001)
     optimizer = optim.Adam(model.parameters(), weight_decay=.001)
-    model = train_model(model, optimizer, simulations, dataset)
+    model = train_model(model, optimizer,sim_df, dataset)
 
     # simulate from trained model
-    simulate_model(model, dataset)
+    simulate_model(model, dataset,sim_df, env_df)
