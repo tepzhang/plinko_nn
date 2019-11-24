@@ -1,6 +1,7 @@
 import math
 import numpy as np
 import torch
+import pandas as pd
 
 def get_sim_data(df_ball, df_col):
     """
@@ -48,35 +49,46 @@ def resize(simulations, environments, max_dim=1, max_angle=1):
     return simulations, environments
 
 
-def create_task_df(selected_runs, df_ball, df_env):
+def create_task_df(selected_runs, df_ball, df_env,append_t0 = True):
     """
     selected_runs: pd.DataFrame with columns 'simulation' and 'run'
     """
     selected_runs = selected_runs[['simulation', 'run']]
     simulations = selected_runs.merge(df_ball, how='inner')
     environments = df_env[df_env.simulation.isin(set(selected_runs.simulation.unique()))]
-    simulations, environments = resize(simulations, environments, 10, 10)
-    environments = environments.merge(simulations[simulations.t == 0][['simulation', 'run', 'vx', 'vy']])
+    simulations, environments = resize(simulations, environments, 10, 10) # why resize??
+
+    if append_t0:
+        environments = environments.merge(simulations[simulations.t == 0][['simulation', 'run', 'vx', 'vy']]) # add 4 columns, initial position of the ball
+    else:
+        environments = environments.merge(simulations[simulations.t == 0][['simulation', 'run']])
+
     return simulations, environments
 
-
-def to_tensors(simulations, environments, device):
-    simulations = simulations.sort_values(['simulation', 'run', 't'])
-    environments = environments.sort_values(['simulation', 'run'])
+def to_tensors(simulations, environments, device, outdf = False):
+    """
+    :param simulations:
+    :param environments:
+    :param device:
+    :param outdf: output the dataframe (with dropped columns)
+    :return:
+    """
+    sim_df = simulations.sort_values(['simulation', 'run', 't'])
+    env_df = environments.sort_values(['simulation', 'run'])
+    env_df = env_df.drop(['simulation', 'run', 'hole_dropped_into'], axis=1)
 
     # environment tensor
-    envs = torch.tensor(environments.drop(['simulation', 'run', 'hole_dropped_into'], axis=1).values,
+    envs = torch.tensor(env_df.values,
                         dtype=torch.float,
                         device=device)
 
     # state tensor
-    states = np.zeros((len(envs), simulations.t.max() + 1, 2))
+    states = np.zeros(((envs).shape[0], sim_df.t.max() + 1, 2))
     sim = None
     t = None
     state = None
     sim_i = 0
-    for record in simulations.to_records():
-        # if a simulation ended before max_t, pad it with the current state
+    for record in sim_df.to_records():
         if sim is not None and (sim, run) != (record.simulation, record.run):
             states[sim_i, t + 1:] = state
             sim_i += 1
@@ -85,6 +97,36 @@ def to_tensors(simulations, environments, device):
         t = record.t
         state = [record.px, record.py]
         states[sim_i, t] = state
+
+    # if a simulation ended before max_t, pad it with the current state
     states[sim_i, t + 1:] = state
 
-    return torch.tensor(states, dtype=torch.float, device=device), envs
+    if outdf:
+        return torch.tensor(states, dtype=torch.float, device=device), envs, sim_df, env_df
+    else:
+        return torch.tensor(states, dtype=torch.float, device=device), envs
+
+def create_simdata_from_samples(simulation,environment,sim_df, env_df):
+    """
+    :param simulation: (sim#,t,2); x and y position at each time in the simulation
+    :param environment: (sim#,#env_vars), environment variables
+    :return: sim_ball, sim_env structures
+    """
+    N_sim = simulation.shape[0]
+    N_samples = simulation.shape[1]
+
+    df_env = pd.DataFrame(environment.data.cpu().numpy(),columns = env_df.columns)
+    df_ball = pd.DataFrame()
+
+    ball_rows = []
+
+    for i in range(N_sim):
+        sim_name = 'sim_{}'.format(i)
+        for smp in range(N_samples):
+            row = {'simulation': sim_name, 'run': 0, 't': smp,
+                   'px': simulation[i,smp,0].data.cpu().numpy(), 'py': simulation[i,smp,1].data.cpu().numpy()}
+            ball_rows.append(row)
+
+    df_ball = pd.DataFrame(ball_rows)
+
+    return df_env, df_ball

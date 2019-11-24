@@ -71,3 +71,18 @@ def select_along_dim(tensor, indices):
     shape = (-1,)*(dim+1) + tensor.shape[dim+1:]
     indices = indices.expand(shape)
     return tensor.gather(dim, indices).squeeze(dim)
+
+def log_sum_exp(x, dim=0):
+    """
+    Compute the log(sum(exp(x), dim)) in a numerically stable manner
+
+    Args:
+        x: tensor: (...): Arbitrary tensor
+        dim: int: (): Dimension along which sum is computed
+
+    Return:
+        _: tensor: (...): log(sum(exp(x), dim))
+    """
+    max_x = torch.max(x, dim)[0]
+    new_x = x - max_x.unsqueeze(dim).expand_as(x)
+    return max_x + (new_x.exp().sum(dim)).log()
