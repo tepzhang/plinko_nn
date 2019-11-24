@@ -4,6 +4,7 @@ from torch.distributions.categorical import Categorical
 from ..misc import utils
 import math
 import sys
+import numpy as np
 
 
 epsilon = sys.float_info.epsilon
@@ -66,10 +67,17 @@ class GaussianMixture:
         M = _batch_mahalanobis(self.mvn._unbroadcasted_scale_tril, diff)
         half_log_det = self.mvn._unbroadcasted_scale_tril.diagonal(dim1=-2, dim2=-1).log().sum(-1)
         logp = -0.5 * (self.point_dim * math.log(2 * math.pi) + M) - half_log_det
-        probs = logp.exp()
-        weighted_probs = self.alpha * probs
-        mixed_probs = weighted_probs.sum(-1)
-        return (mixed_probs + epsilon).log()
+
+        # implementation by converting things to p
+        # probs = logp.exp()
+        # weighted_probs = self.alpha * probs
+        # mixed_probs = weighted_probs.sum(-1)
+        # mix_logp = (mixed_probs + epsilon).log()
+
+        # (hopefully) more stable implementation
+        mix_logp = utils.log_sum_exp(torch.log(self.alpha) + logp, dim=-1) # numerically stable logp calculation.
+
+        return mix_logp
 
     def sample(self):
         """
