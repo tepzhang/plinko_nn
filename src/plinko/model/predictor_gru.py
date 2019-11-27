@@ -16,7 +16,8 @@ class GRUPredictor(nn.Module):
                  state_size,
                  env_embed_size=32,
                  state_embed_size=16,
-                 num_gaussians=8
+                 num_gaussians=8,
+                 trainable_h0=False
                  ):
         super(GRUPredictor, self).__init__()
         self.env_size = env_size
@@ -24,6 +25,7 @@ class GRUPredictor(nn.Module):
         self.env_embed_size = env_embed_size
         self.num_gaussians = num_gaussians
         self.hidden_size = 128
+        self.trainable_h0 = trainable_h0
 
         self.env_embedder = MLP(input_size=env_size,
                                 hidden_layer_size=None,
@@ -40,12 +42,20 @@ class GRUPredictor(nn.Module):
                                     self.num_gaussians * 2,  # mu
                                     self.num_gaussians * 3])  # sigma
 
+        if self.trainable_h0:
+            self.register_parameter('init_gru_h',
+                                    torch.nn.Parameter(torch.rand(self.gru.num_layers, self.hidden_size)))
+
     def predict_using_true_states(self, h_env, states):
         """
         At each t, given the true state at t, predict the distribution for t+1
         """
         batch_size, t, state_size = states.shape
-        h_n = torch.zeros(self.gru.num_layers, batch_size, self.hidden_size, dtype=torch.float, device=h_env.device)
+
+        if self.trainable_h0:
+            h_n = utils.expand_along_dim(self.init_gru_h, batch_size, 1).contiguous()
+        else:
+            h_n = torch.zeros(self.gru.num_layers, batch_size, self.hidden_size, dtype=torch.float, device=h_env.device)
 
         h_env = utils.expand_along_dim(h_env, t, 0)
         states = states.permute(1, 0, 2)
