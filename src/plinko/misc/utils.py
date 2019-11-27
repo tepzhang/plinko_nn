@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 
 
 def merge_dicts(a: dict, b: dict):
@@ -72,6 +73,7 @@ def select_along_dim(tensor, indices):
     indices = indices.expand(shape)
     return tensor.gather(dim, indices).squeeze(dim)
 
+
 def log_sum_exp(x, dim=0):
     """
     Compute the log(sum(exp(x), dim)) in a numerically stable manner
@@ -86,3 +88,29 @@ def log_sum_exp(x, dim=0):
     max_x = torch.max(x, dim)[0]
     new_x = x - max_x.unsqueeze(dim).expand_as(x)
     return max_x + (new_x.exp().sum(dim)).log()
+
+
+def identity_predictor_check(model, dataloader):
+    """
+    Used to perform a sanity check on the model by comparing the outputs to
+    the inputs and targets. This is to ensure that the model doesn't simply
+    learn an identity function to reduce MSE since positions at times t and t+1
+    are fairly close together.
+
+    mse_input: the mean-squared error to the input positions (time t)
+    mse_target: the mean-squared error to the target positions (time t+1)
+
+    Currently to be specifically used with GRUPredictor.
+    :param model: GRUPredictor
+    :param dataloader: DataLoader
+    :return: mse_input, mse_target
+    """
+    mse_input = 0
+    mse_target = 0
+    with torch.no_grad():
+        for batch_i, batch in enumerate(dataloader):
+            gm = model(batch['envs'], batch['states'], 0)
+            gm_mu = gm.mu[..., 0, :]  # gets mu of first gaussian
+            mse_input += F.mse_loss(gm_mu, batch['states'])
+            mse_target += F.mse_loss(gm_mu, batch['targets'])
+    return mse_input, mse_target
