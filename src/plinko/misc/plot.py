@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from plotnine import *
 
 
-def plot_pred_target(prediction, target, sim_range=range(9)):
+def plot_pred_target(prediction, target, sim_range=range(9), title = "Prediction (x_t+1|x_t) vs. target"):
     """
     :prediction: a tensor of predicted positions
     :target: a tensor of target
@@ -23,12 +23,13 @@ def plot_pred_target(prediction, target, sim_range=range(9)):
 
     p = (ggplot(df, aes('px', 'py', color = 'source', grouping = 'run'))
         + geom_path(alpha = .2)
-     +geom_point(alpha = .2)
-        +xlim(0, 10))
+        +geom_point(alpha = .2)
+        +xlim(0, 10)
+        + labs(title = title))
     print(p)
 
 
-def plot_losses(losses, time_range = None, title = 'loss over time'):
+def plot_losses(losses, time_range = None, title = 'loss over time', alpha = .5):
     """
     :losses: tuples or array of losses (each row is one timepoint, and the 3 columns are epoch, batch_i, and loss)
     :time_range: the range in timepoint you want to plot
@@ -42,8 +43,8 @@ def plot_losses(losses, time_range = None, title = 'loss over time'):
     # print(df_losses)
 
     p = (ggplot(df_losses, aes('time', 'loss'))
-        + geom_path()
-        + geom_point()
+        + geom_path(alpha = alpha)
+        + geom_point(alpha = alpha)
         + xlim(time_range[0], time_range[-1])
         + labs(title = title)
         )
