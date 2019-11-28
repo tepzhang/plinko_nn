@@ -28,23 +28,31 @@ def plot_pred_target(prediction, target, sim_range=range(9), title = "Prediction
         + labs(title = title))
     print(p)
 
-def plot_pred_gaussian(pred_mu, target, sigma, sim_index = 0, title = "95% ellipse of predicted gaussian", color = 'salmon'):
+def plot_pred_gaussian(pred_mu, target, sigma, sim_index = 0, alpha = .3, 
+                       title = "95% ellipse of predicted gaussian", color = 'salmon'):
     """
-    pred_mu: a tensor of predicted positions at a certain epoch
-    target: a tensor of target at a certain epoch
-    sigma: a tensor of predicted sigma at a certain epoch
-    sim_index: one index number of simulation to plot
-    return: plot the path of target and prediction
+    :pred_mu: a tensor of predicted positions at a certain epoch
+    :target: a tensor of target at a certain epoch or None
+    :sigma: a tensor of predicted sigma at a certain epoch
+    :sim_index: one index number of simulation to plot
+    :return: plot the path of target and prediction
     """
-    df_pred_mu = pd.DataFrame()
-    df_target_mu = pd.DataFrame()
-    i = sim_index
-    df_pred = pd.DataFrame(pred_mu[i].data.cpu().numpy(),columns = ['px', 'py'])
-    df_target = pd.DataFrame(target[i].data.cpu().numpy(),columns = ['px', 'py'])
-    df_pred_mu = df_pred_mu.append(df_pred) 
-    df_target_mu = df_target_mu.append(df_target)
-    # print(df_pred_mu)
-    # print(df_target_mu)
+    if target is None:        
+        df_pred_mu = pd.DataFrame()
+        i = sim_index
+        df_pred = pd.DataFrame(pred_mu[i].data.cpu().numpy(),columns = ['px', 'py'])
+        df_pred_mu = df_pred_mu.append(df_pred)
+        df_target_mu = None
+    else:        
+        df_pred_mu = pd.DataFrame()
+        df_target_mu = pd.DataFrame()
+        i = sim_index
+        df_pred = pd.DataFrame(pred_mu[i].data.cpu().numpy(),columns = ['px', 'py'])
+        df_target = pd.DataFrame(target[i].data.cpu().numpy(),columns = ['px', 'py'])
+        df_pred_mu = df_pred_mu.append(df_pred) 
+        df_target_mu = df_target_mu.append(df_target)
+        # print(df_pred_mu)
+        # print(df_target_mu)
 
     df_sigma = []
     i = sim_index
@@ -61,21 +69,30 @@ def plot_pred_gaussian(pred_mu, target, sigma, sim_index = 0, title = "95% ellip
         x, y = np.random.multivariate_normal(mean, cov, 100).T
         sample = sample.append(pd.DataFrame({'x': x, 'y':y, 'time': i}))
     # print(sample)
-
-    p = (ggplot(sample, aes('x', 'y')) 
-        + geom_path(data = df_target_mu, mapping = aes('px', 'py'), alpha = .5, color = color) 
-        + geom_point(data = df_target_mu, mapping = aes('px', 'py'), alpha = .5, color = color) 
-        + geom_path(data = df_pred_mu, mapping = aes('px', 'py'), alpha = .5) 
-        + geom_point(data = df_pred_mu, mapping = aes('px', 'py'), alpha = .5) 
-        + stat_ellipse(aes(group = 'time'), alpha = .5)
-        + xlim(0, 10)
-        + ylim(0, 10)
-        + labs(title = title))
+    
+    if target is None: 
+        p = (ggplot(sample, aes('x', 'y')) 
+            + geom_path(data = df_pred_mu, mapping = aes('px', 'py'), alpha = alpha) 
+            + geom_point(data = df_pred_mu, mapping = aes('px', 'py'), alpha = alpha) 
+            + stat_ellipse(aes(group = 'time'), alpha = alpha)
+            + xlim(0, 10)
+            + ylim(0, 10)
+            + labs(title = title))
+    else:
+        p = (ggplot(sample, aes('x', 'y')) 
+            + geom_path(data = df_target_mu, mapping = aes('px', 'py'), alpha = alpha, color = color) 
+            + geom_point(data = df_target_mu, mapping = aes('px', 'py'), alpha = alpha, color = color) 
+            + geom_path(data = df_pred_mu, mapping = aes('px', 'py'), alpha = alpha) 
+            + geom_point(data = df_pred_mu, mapping = aes('px', 'py'), alpha = alpha) 
+            + stat_ellipse(aes(group = 'time'), alpha = alpha)
+            + xlim(0, 10)
+            + ylim(0, 10)
+            + labs(title = title))
 
     print(p)
 
 
-def plot_losses(losses, time_range = None, title = 'loss over time', alpha = .5):
+def plot_losses(losses, time_range = None, title = 'loss over time', alpha = .5, shape = '.'):
     """
     :losses: tuples or array of losses (each row is one timepoint, and the 3 columns are epoch, batch_i, and loss)
     :time_range: the range in timepoint you want to plot
@@ -91,13 +108,13 @@ def plot_losses(losses, time_range = None, title = 'loss over time', alpha = .5)
 
     p = (ggplot(df_losses, aes('time', 'loss'))
         + geom_path(alpha = alpha)
-        + geom_point(alpha = alpha)
+        + geom_point(alpha = alpha, shape = shape)
         + xlim(time_range[0], time_range[-1])
         + labs(title = title)
         )
     print(p)
 
-def plot_mu_over_time(mu_overtime, sim_range = None, time_range = None):
+def plot_mu_over_time(mu_overtime, sim_range = None, time_range = None, alpha = .3, shape = '.'):
     """
     :mu_overtime: a list of tensors of mu over time (an element in the list represents on timepoint, each tensor represents one simulation run)
     :time_range: the range in timepoint you want to plot
@@ -125,14 +142,14 @@ def plot_mu_over_time(mu_overtime, sim_range = None, time_range = None):
     # print(df)
 
     p = (ggplot(df, aes('time', 'coordinate', color = 'direction'))
-        + geom_path()
-        + geom_point()
+        + geom_path(alpha = alpha)
+        + geom_point(alpha = alpha, shape = shape)
         # + xlim(time_range[0], time_range[-1])
         + labs(title = 'Average mu over time', x = 'epoch of training')
         )
     print(p)
 
-def plot_variance_over_time(sigma_overtime, sim_range= None, time_range = None):
+def plot_variance_over_time(sigma_overtime, sim_range= None, time_range = None, alpha = .3, shape = '.'):
     """
     :sigma_overtime: a list of tensors of sigma over time (an element in the list represents on timepoint, each tensor represents one simulation run)
     :time_range: the range in timepoint you want to plot
@@ -165,8 +182,8 @@ def plot_variance_over_time(sigma_overtime, sim_range= None, time_range = None):
     # print(df)
 
     p = (ggplot(df, aes('time', 'variance', color = 'direction'))
-        + geom_path()
-        + geom_point()
+        + geom_path(alpha = alpha)
+        + geom_point(alpha = alpha, shape = shape)
     #     + xlim(time_range[0], time_range[-1])
         + labs(title = 'Average variance over time', x = 'epoch of training')
         )
