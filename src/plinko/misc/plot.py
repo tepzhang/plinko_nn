@@ -80,7 +80,7 @@ def plot_mu_over_time(mu_overtime, sim_range = None, time_range = None):
         + geom_path()
         + geom_point()
         # + xlim(time_range[0], time_range[-1])
-        + labs(title = 'Average mu over time', x = 'time of training')
+        + labs(title = 'Average mu over time', x = 'epoch of training')
         )
     print(p)
 
@@ -120,6 +120,6 @@ def plot_variance_over_time(sigma_overtime, sim_range= None, time_range = None):
         + geom_path()
         + geom_point()
     #     + xlim(time_range[0], time_range[-1])
-        + labs(title = 'Average variance over time', x = 'time of training')
+        + labs(title = 'Average variance over time', x = 'epoch of training')
         )
     print(p)
