@@ -28,6 +28,52 @@ def plot_pred_target(prediction, target, sim_range=range(9), title = "Prediction
         + labs(title = title))
     print(p)
 
+def plot_pred_gaussian(pred_mu, target, sigma, sim_index = 0, title = "95% ellipse of predicted gaussian", color = 'salmon'):
+    """
+    pred_mu: a tensor of predicted positions at a certain epoch
+    target: a tensor of target at a certain epoch
+    sigma: a tensor of predicted sigma at a certain epoch
+    sim_index: one index number of simulation to plot
+    return: plot the path of target and prediction
+    """
+    df_pred_mu = pd.DataFrame()
+    df_target_mu = pd.DataFrame()
+    i = sim_index
+    df_pred = pd.DataFrame(pred_mu[i].data.cpu().numpy(),columns = ['px', 'py'])
+    df_target = pd.DataFrame(target[i].data.cpu().numpy(),columns = ['px', 'py'])
+    df_pred_mu = df_pred_mu.append(df_pred) 
+    df_target_mu = df_target_mu.append(df_target)
+    # print(df_pred_mu)
+    # print(df_target_mu)
+
+    df_sigma = []
+    i = sim_index
+    for j in range(len(sigma[i])):
+        sigma_ij = sigma[i, j].data.cpu().numpy()
+        sigma_ij[0, 1] = sigma_ij[1, 0]
+        df_sigma.append(sigma_ij)
+        
+    # print(len(df_sigma))
+    sample = pd.DataFrame()
+    for i in range(len(df_pred_mu)):
+        mean = [df_pred_mu['px'][i], df_pred_mu['py'][i]]
+        cov = df_sigma[i]
+        x, y = np.random.multivariate_normal(mean, cov, 100).T
+        sample = sample.append(pd.DataFrame({'x': x, 'y':y, 'time': i}))
+    # print(sample)
+
+    p = (ggplot(sample, aes('x', 'y')) 
+        + geom_path(data = df_target_mu, mapping = aes('px', 'py'), alpha = .5, color = color) 
+        + geom_point(data = df_target_mu, mapping = aes('px', 'py'), alpha = .5, color = color) 
+        + geom_path(data = df_pred_mu, mapping = aes('px', 'py'), alpha = .5) 
+        + geom_point(data = df_pred_mu, mapping = aes('px', 'py'), alpha = .5) 
+        + stat_ellipse(aes(group = 'time'), alpha = .5)
+        + xlim(0, 10)
+        + ylim(0, 10)
+        + labs(title = title))
+
+    print(p)
+
 
 def plot_losses(losses, time_range = None, title = 'loss over time', alpha = .5):
     """
@@ -36,11 +82,11 @@ def plot_losses(losses, time_range = None, title = 'loss over time', alpha = .5)
     :title: title of the plot
     :return: plot the loss over time
     """
-    if time_range is None:
-        time_range = range(len(losses))
     df_losses = pd.DataFrame(losses, columns =['epoch', 'batch_i', 'loss'])
     df_losses = df_losses.groupby(['epoch']).sum()
     df_losses['time'] = range(len(df_losses))
+    if time_range is None:
+        time_range = range(len(df_losses))
     # print(df_losses)
 
     p = (ggplot(df_losses, aes('time', 'loss'))
