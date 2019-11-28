@@ -28,7 +28,7 @@ def plot_pred_target(prediction, target, sim_range=range(9), title = "Prediction
         + labs(title = title))
     print(p)
 
-def plot_pred_gaussian(pred_mu, target, sigma, sim_index = 0, title = "95% ellipse of predicted gaussian"):
+def plot_pred_gaussian(pred_mu, target, sigma, sim_index = 0, title = "95% ellipse of predicted gaussian", color = 'salmon'):
     """
     pred_mu: a tensor of predicted positions at a certain epoch
     target: a tensor of target at a certain epoch
@@ -63,10 +63,10 @@ def plot_pred_gaussian(pred_mu, target, sigma, sim_index = 0, title = "95% ellip
     # print(sample)
 
     p = (ggplot(sample, aes('x', 'y')) 
-        + geom_path(data = df_target_mu, mapping = aes('px', 'py'), alpha = .5, color = 'blue') 
-        + geom_point(data = df_target_mu, mapping = aes('px', 'py'), alpha = .5, shape = '.', color = 'blue') 
+        + geom_path(data = df_target_mu, mapping = aes('px', 'py'), alpha = .5, color = color) 
+        + geom_point(data = df_target_mu, mapping = aes('px', 'py'), alpha = .5, color = color) 
         + geom_path(data = df_pred_mu, mapping = aes('px', 'py'), alpha = .5) 
-        + geom_point(data = df_pred_mu, mapping = aes('px', 'py'), alpha = .5, shape = '.') 
+        + geom_point(data = df_pred_mu, mapping = aes('px', 'py'), alpha = .5) 
         + stat_ellipse(aes(group = 'time'), alpha = .5)
         + xlim(0, 10)
         + ylim(0, 10)
