@@ -39,6 +39,7 @@ def plot_losses(losses, time_range = None, title = 'loss over time', alpha = .5)
     if time_range is None:
         time_range = range(len(losses))
     df_losses = pd.DataFrame(losses, columns =['epoch', 'batch_i', 'loss'])
+    df_losses = df_losses.groupby(['epoch']).sum()
     df_losses['time'] = range(len(df_losses))
     # print(df_losses)
 
