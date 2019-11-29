@@ -43,14 +43,16 @@ def extract_ball_data(simulation):
     rows = []
     p_key = 'position' if 'position' in simulation else 'ball_position'
     v_key = 'velocity' if 'position' in simulation else 'ball_velocity'
+    hasp = 1 if p_key in simulation else 0
+    hasv = 1 if v_key in simulation else 0
     for t in range(len(simulation[p_key])):
-        row = {
-            't': t,
-            'px': simulation[p_key][t]['x'],
-            'py': simulation[p_key][t]['y'],
-            'vx': simulation[v_key][t]['x'],
-            'vy': simulation[v_key][t]['y']
-        }
+        row = {'t': t}
+        if hasp:
+            row['px'] = simulation[p_key][t]['x']
+            row['py'] = simulation[p_key][t]['y']
+        if hasv:
+            row['vx'] = simulation[v_key][t]['x']
+            row['vy'] = simulation[v_key][t]['y']
         rows.append(row)
     return rows
 

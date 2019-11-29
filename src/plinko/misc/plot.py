@@ -23,15 +23,19 @@ def plot_pred_target(prediction, target, sim_range=range(9),filename=None):
 
     p = (ggplot(df, aes('px', 'py', color = 'source', grouping = 'run'))
         + geom_path(alpha = .2)
-     +geom_point(alpha = .2)
+        +geom_point(alpha = .2)
         +xlim(0, 10))
-    print(p)
 
     if filename is not None:
-        ggsave(filename=filename,
-               plot=p,
-               device='png')
+        s = filename.split('/')
+        path = '/'.join(s[:-1])
+        ggsave(filename = s[-1] + '.png',
+               path = path,
+               plot = p,
+               device = 'png',
+               dpi = 300, limitsize = True)
 
+    print(p)
 
 def plot_losses(losses, time_range = None, title = 'loss over time',filename=None):
     """
@@ -52,12 +56,17 @@ def plot_losses(losses, time_range = None, title = 'loss over time',filename=Non
         + xlim(time_range[0], time_range[-1])
         + labs(title = title)
         )
-    print(p)
 
     if filename is not None:
-        ggsave(filename=filename,
-               plot=p,
-               device='png')
+        s = filename.split('/')
+        path = '/'.join(s[:-1])
+        ggsave(filename = s[-1] + '.png',
+               path = path,
+               plot = p,
+               device = 'png',
+               dpi = 300, limitsize = True)
+
+    print(p)
 
 def plot_mu_over_time(mu_overtime, sim_range = None, time_range = None,filename=None):
     """
@@ -92,12 +101,18 @@ def plot_mu_over_time(mu_overtime, sim_range = None, time_range = None,filename=
         # + xlim(time_range[0], time_range[-1])
         + labs(title = 'Average mu over time', x = 'time of training')
         )
-    print(p)
 
     if filename is not None:
-        ggsave(filename=filename,
-               plot=p,
-               device='png')
+        s = filename.split('/')
+        path = '/'.join(s[:-1])
+        ggsave(filename = s[-1] + '.png',
+               path = path,
+               plot = p,
+               device = 'png',
+               dpi = 300, limitsize = True)
+
+
+    print(p)
 
 def plot_variance_over_time(sigma_overtime, sim_range= None, time_range = None,filename=None):
     """
@@ -137,9 +152,44 @@ def plot_variance_over_time(sigma_overtime, sim_range= None, time_range = None,f
     #     + xlim(time_range[0], time_range[-1])
         + labs(title = 'Average variance over time', x = 'time of training')
         )
-    print(p)
 
     if filename is not None:
-        ggsave(filename=filename,
-               plot=p,
-               device='png')
+        s = filename.split('/')
+        path = '/'.join(s[:-1])
+        ggsave(filename = s[-1] + '.png',
+               path = path,
+               plot = p,
+               device = 'png',
+               dpi = 300, limitsize = True)
+
+
+    print(p)
+
+
+def plot_trainlosses(losses, title = 'training loss',filename=None):
+    """
+    :losses: tuples or array of losses (epoch, loss)
+    :title: title of the plot
+    :return: plot the loss over time
+    """
+
+    df_losses = pd.DataFrame(losses, columns =['epoch', 'loss'])
+    # print(df_losses)
+
+    p = (ggplot(df_losses, aes('epoch', 'loss'))
+        + geom_path()
+        + geom_point()
+        + labs(title = title)
+        )
+
+    if filename is not None:
+        s = filename.split('/')
+        path = '/'.join(s[:-1])
+        ggsave(filename = s[-1] + '.png',
+               path = path,
+               plot = p,
+               device = 'png',
+               dpi = 300, limitsize = True)
+
+    print(p)
+
