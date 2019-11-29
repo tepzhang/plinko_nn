@@ -81,7 +81,6 @@ def train_model(model,optimizer,simulations,dataset,epochs = 1000, savename = 'g
                                                                      round(float(epoch_loss), 4)))
         allepoch_losses.append((epoch,float(epoch_loss)))
     torch.save(model.state_dict(), savename + '.model')
-
     plinko_plot.plot_trainlosses(allepoch_losses, title='training loss', filename = (savename + '_trainloss'))
     return model
 
@@ -172,19 +171,19 @@ if __name__ == '__main__':
 
                 # train model
                 optimizer = optim.Adam(model.parameters(), weight_decay=nreg)
-                model = train_model(model, optimizer, train_sim_df, train_set,epochs = 1, savename = ('../experiments/gru_cv/' + name))
+                model = train_model(model, optimizer, train_sim_df, train_set,epochs = 200, savename = ('../experiments/gru_cv/' + name))
 
                 # get loglikelihood and simulate
                 with torch.no_grad():
                     loss, logp_loss, mse_loss = test_model_loglike(model, cv_sim_df, cv_set, savename = ('../experiments/gru_cv/' + name))
-                    all_cvloglikes.append(loss)
+                    all_cvloglikes.append(float(loss))
                     simulate_model(model, cv_set, cv_sim_df, cv_env_df, modelname= ('../experiments/gru_cv/' + name))
 
                 plt.close("all")
                 torch.cuda.empty_cache()
 
     bestidx = all_cvloglikes.index(min(all_cvloglikes))
-    print('Model with lowest cv error: '.format(all_names[bestidx]))
+    print('Model with lowest cv error: ' + all_names[bestidx])
 
     cvdata = {'Name': all_names,
             'loglike': all_cvloglikes,
@@ -192,6 +191,6 @@ if __name__ == '__main__':
             'N_rnn_layer': all_nrnn,
             'Reg weight': all_reg}
 
-    torch.save(pd.DataFrame(cvdata), 'cvmodels')
+    pd.DataFrame(cvdata).to_pickle('../experiments/gru_cv/cvmodels.pkl')
 
     # print test error and the training loss

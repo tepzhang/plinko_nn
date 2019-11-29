@@ -34,8 +34,8 @@ def plot_pred_target(prediction, target, sim_range=range(9),filename=None):
                plot = p,
                device = 'png',
                dpi = 300, limitsize = True)
-
-    print(p)
+    else:
+        print(p)
 
 def plot_losses(losses, time_range = None, title = 'loss over time',filename=None):
     """
@@ -65,8 +65,8 @@ def plot_losses(losses, time_range = None, title = 'loss over time',filename=Non
                plot = p,
                device = 'png',
                dpi = 300, limitsize = True)
-
-    print(p)
+    else:
+        print(p)
 
 def plot_mu_over_time(mu_overtime, sim_range = None, time_range = None,filename=None):
     """
@@ -110,9 +110,8 @@ def plot_mu_over_time(mu_overtime, sim_range = None, time_range = None,filename=
                plot = p,
                device = 'png',
                dpi = 300, limitsize = True)
-
-
-    print(p)
+    else:
+        print(p)
 
 def plot_variance_over_time(sigma_overtime, sim_range= None, time_range = None,filename=None):
     """
@@ -161,9 +160,8 @@ def plot_variance_over_time(sigma_overtime, sim_range= None, time_range = None,f
                plot = p,
                device = 'png',
                dpi = 300, limitsize = True)
-
-
-    print(p)
+    else:
+        print(p)
 
 
 def plot_trainlosses(losses, title = 'training loss',filename=None):
@@ -190,6 +188,6 @@ def plot_trainlosses(losses, title = 'training loss',filename=None):
                plot = p,
                device = 'png',
                dpi = 300, limitsize = True)
-
-    print(p)
+    else:
+        print(p)
 
