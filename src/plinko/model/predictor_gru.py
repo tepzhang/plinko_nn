@@ -6,7 +6,7 @@ from ..misc import utils
 from ..misc.gaussianmixture import GaussianMixture
 import sys
 
-epsilon = epsilon = sys.float_info.epsilon
+epsilon = sys.float_info.epsilon
 
 
 class GRUPredictor(nn.Module):

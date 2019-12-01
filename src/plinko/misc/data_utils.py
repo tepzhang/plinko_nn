@@ -65,11 +65,12 @@ def create_task_df(selected_runs, df_ball, df_env,append_t0 = True):
 
     return simulations, environments
 
-def to_tensors(simulations, environments, device, outdf = False):
+def to_tensors(simulations, environments, device, include_v=False, outdf = False):
     """
     :param simulations:
     :param environments:
     :param device:
+    :param include_v: if True, includes velocity in state, else only position
     :param outdf: output the dataframe (with dropped columns)
     :return:
     """
@@ -83,7 +84,7 @@ def to_tensors(simulations, environments, device, outdf = False):
                         device=device)
 
     # state tensor
-    states = np.zeros(((envs).shape[0], sim_df.t.max() + 1, 2))
+    states = np.zeros(((envs).shape[0], sim_df.t.max() + 1, 4 if include_v else 2))
     sim = None
     t = None
     state = None
@@ -95,7 +96,10 @@ def to_tensors(simulations, environments, device, outdf = False):
         sim = record.simulation
         run = record.run
         t = record.t
-        state = [record.px, record.py]
+        if include_v:
+            state = [record.px, record.py, record.vx, record.vy]
+        else:
+            state = [record.px, record.py]
         states[sim_i, t] = state
 
     # if a simulation ended before max_t, pad it with the current state
