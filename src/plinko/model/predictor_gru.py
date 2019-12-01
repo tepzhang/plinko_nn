@@ -118,9 +118,9 @@ class GRUPredictor(nn.Module):
 
 
 class GRUPredictor_mu(nn.Module):
-"""
-GRU model to predict the mu only
-"""
+    """
+    GRU model to predict the mu only
+    """
     def __init__(self,
                  env_size,
                  state_size,
@@ -129,7 +129,7 @@ GRU model to predict the mu only
                  num_gaussians=8,
                  trainable_h0=False
                  ):
-        super(GRUPredictor, self).__init__()
+        super(GRUPredictor_mu, self).__init__()
         self.env_size = env_size
         self.state_size = state_size
         self.env_embed_size = env_embed_size
@@ -186,12 +186,16 @@ GRU model to predict the mu only
 
     def predict_using_sampled_states(self, h_env, h_n, a, m, s, predict_t):
         """
-        At each t, samples a state at t to predict the distribution for t+1
+        At each t, samples a state at t to predict the mu for t+1
         """
         gm = GaussianMixture(a, m, s, lower_cholesky=True)
         # state = gm.sample()
+#         print("sample is ", gm.sample())
+#         print(gm.sample().shape)
         # returns the mu from the Gaussian mixture
-        state = gm.mu
+#         print("mu is ", gm.mu[:, 0])
+#         print(gm.mu[:, 0].shape)
+        state = gm.mu[:, 0]
 
         gms = [gm]
         samples = [state]
@@ -207,7 +211,7 @@ GRU model to predict the mu only
             gm = GaussianMixture(a, m, s, lower_cholesky=True)
             # state = gm.sample()
             # returns the mu from the Gaussian mixture
-            state = gm.mu
+            state = gm.mu[:, 0]
             samples.append(state)
             gms.append(gm)
         return gms, torch.stack(samples, dim=1)

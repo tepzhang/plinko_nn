@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from plotnine import *
 
 
-def plot_pred_target(prediction, target, sim_range=range(9), title = "Prediction (x_t+1|x_t) vs. target"):
+def plot_pred_target(prediction, target, sim_range=range(10), title = "Prediction (x_t+1|x_t) vs. target"):
     """
     :prediction: a tensor of predicted positions
     :target: a tensor of target
