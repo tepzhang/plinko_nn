@@ -2,9 +2,11 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from plotnine import *
+import torch
+from . import utils
 
 
-def plot_pred_target(prediction, target, sim_range=range(10), title = "Prediction (x_t+1|x_t) vs. target"):
+def plot_pred_target(prediction, target, sim_range=range(10), title = "Prediction (x_t+1|x_t) vs. target",filename=None):
     """
     :prediction: a tensor of predicted positions
     :target: a tensor of target
@@ -27,6 +29,10 @@ def plot_pred_target(prediction, target, sim_range=range(10), title = "Predictio
         +xlim(0, 10)
         + labs(title = title))
     print(p)
+    if filename is not None:
+    ggsave(filename=filename,
+            plot=p,
+            device='png')
 
 def plot_pred_gaussian(pred_mu, target, sigma, sim_index = 0, alpha = .3, 
                        title = "95% ellipse of predicted gaussian", color = 'salmon'):
@@ -92,7 +98,7 @@ def plot_pred_gaussian(pred_mu, target, sigma, sim_index = 0, alpha = .3,
     print(p)
 
 
-def plot_losses(losses, time_range = None, title = 'loss over time', alpha = .5, shape = '.'):
+def plot_losses(losses, time_range = None, title = 'loss over time', alpha = .5, shape = '.',filename=None):
     """
     :losses: tuples or array of losses (each row is one timepoint, and the 3 columns are epoch, batch_i, and loss)
     :time_range: the range in timepoint you want to plot
@@ -113,8 +119,13 @@ def plot_losses(losses, time_range = None, title = 'loss over time', alpha = .5,
         + labs(title = title)
         )
     print(p)
+    if filename is not None:
+        ggsave(filename=filename,
+               plot=p,
+               device='png')
 
-def plot_mu_over_time(mu_overtime, sim_range = None, time_range = None, alpha = .3, shape = '.'):
+
+def plot_mu_over_time(mu_overtime, sim_range = None, time_range = None, alpha = .3, shape = '.',filename=None):
     """
     :mu_overtime: a list of tensors of mu over time (an element in the list represents on timepoint, each tensor represents one simulation run)
     :time_range: the range in timepoint you want to plot
@@ -148,8 +159,12 @@ def plot_mu_over_time(mu_overtime, sim_range = None, time_range = None, alpha = 
         + labs(title = 'Average mu over time', x = 'epoch of training')
         )
     print(p)
+    if filename is not None:
+        ggsave(filename=filename,
+               plot=p,
+               device='png')
 
-def plot_variance_over_time(sigma_overtime, sim_range= None, time_range = None, alpha = .3, shape = '.'):
+def plot_variance_over_time(sigma_overtime, sim_range= None, time_range = None, alpha = .3, shape = '.', filename=None):
     """
     :sigma_overtime: a list of tensors of sigma over time (an element in the list represents on timepoint, each tensor represents one simulation run)
     :time_range: the range in timepoint you want to plot
@@ -188,3 +203,8 @@ def plot_variance_over_time(sigma_overtime, sim_range= None, time_range = None, 
         + labs(title = 'Average variance over time', x = 'epoch of training')
         )
     print(p)
+
+    if filename is not None:
+        ggsave(filename=filename,
+               plot=p,
+               device='png')

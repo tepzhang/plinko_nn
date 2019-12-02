@@ -17,11 +17,14 @@ from torch.utils.data import DataLoader
 from plinko.misc import data_utils
 from plinko.misc.simulation_dataset import SimulationDataset
 from plinko.model.predictor_gru import GRUPredictor
+from plinko.misc import plot as plinko_plot
+from plotnine import *
 
-def loaddata(run_indices = range(20), outdf = False):
-    df_ball = pd.read_feather('../data/simulations/sim_ball.feather')
-    df_env = pd.read_feather('../data/simulations/sim_environment.feather')
-    df_col = pd.read_feather('../data/simulations/sim_collisions.feather')
+
+def loaddata(run_indices = range(20), outdf = False, basedir = '../data/simulations/'):
+    df_ball = pd.read_feather(os.path.join(basedir + 'sim_ball.feather'))
+    df_env = pd.read_feather(os.path.join(basedir + 'sim_environment.feather'))
+    df_col = pd.read_feather(os.path.join(basedir + 'sim_collisions.feather'))
 
     sim_data = data_utils.get_sim_data(df_ball, df_col)
 
@@ -42,13 +45,11 @@ def get_logp_loss(gm, targets):
 def get_mu_mse_loss(gm, targets):
     return F.mse_loss(gm.mu[:,:,0], targets)
 
-
-def train_model(model,optimizer,simulations,dataset,savename = 'gru.model'):
+def train_model(model,optimizer,simulations,dataset,epochs = 1000, savename = 'gru'):
     # run SGD, with batchsize =64
     dataloader = DataLoader(dataset, batch_size=64, shuffle=True)
 
     max_t = simulations.t.max()
-    epochs = 1
     losses = []
     for epoch in tqdm(range(epochs + 1)):
         epoch_loss = 0
@@ -61,8 +62,9 @@ def train_model(model,optimizer,simulations,dataset,savename = 'gru.model'):
             targets = batch['targets']
 
             logp_loss = get_logp_loss(gm, targets)
+            loss = logp_loss
             mse_loss = 10 * get_mu_mse_loss(gm, targets)
-            loss = logp_loss + mse_loss
+            #loss = logp_loss + mse_loss
             loss.backward(retain_graph=True)
             optimizer.step()
             epoch_loss += loss
@@ -75,24 +77,54 @@ def train_model(model,optimizer,simulations,dataset,savename = 'gru.model'):
                                                                      round(float(epoch_mse_loss), 4),
                                                                      round(float(epoch_loss), 4)))
 
-    torch.save(model.state_dict(), savename)
+    torch.save(model.state_dict(), savename + '.model')
+
+    plinko_plot.plot_losses(losses, time_range=None, title='loss over time', filename= savename + '_loss')
     return model
 
-def simulate_model(model,dataset,sim_df, env_df,modelname = 'gru1'):
-    dataloader = DataLoader(dataset, batch_size=len(envs), shuffle=True)
-    i = 0
-    for batch in dataloader:
-        i += 1
-        with torch.no_grad():
+
+def test_model_loglike(model,sim_df, dataset, savename = 'gru'):
+    # run SGD, with batchsize =64
+    dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
+
+    max_t = sim_df.t.max()
+    losses = []
+    epoch_loss = 0
+    epoch_mse_loss = 0
+    epoch_logp_loss = 0
+    for batch_i, batch in enumerate(dataloader):
+        gm = model(batch['envs'], batch['states'], 0)
+        targets = batch['targets']
+
+        logp_loss = get_logp_loss(gm, targets)
+        loss = logp_loss
+        mse_loss = 10 * get_mu_mse_loss(gm, targets)
+        #loss = logp_loss + mse_loss
+        epoch_loss += loss
+        epoch_logp_loss += logp_loss
+        epoch_mse_loss += mse_loss
+
+    return epoch_loss, epoch_logp_loss, epoch_mse_loss
+
+def simulate_model(model,dataset,sim_df, env_df,nsim = 4,modelname = 'gru1'):
+    # load and plot 4 times
+    dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
+
+    for batch_i, batch in enumerate(dataloader):
+        if batch_i < nsim:
+            gm = model(batch['envs'], batch['states'], 0)
+            targets = batch['targets']
+
+            # plot simulation x_{t+1}|x_t
+            gm_mu = gm.mu[:, :, 0]
+            target_mu = targets
+            plinko_plot.plot_pred_target(gm_mu, target_mu, range(1),filename=(modelname + 'nextsim{}'.format(batch_i)))
+
+            # plot entire
             inter_gm, extra_gm, samples = model(batch['envs'], batch['states'][:, :1], 100)
             targets = batch['targets'][:,1:101]
-            df_env, df_ball = data_utils.create_simdata_from_samples(samples, batch['envs'],sim_df, env_df)
-            df_ball.to_feather(os.path.join('../experiments/' + modelname + '/batch{}'.format(i) + 'samp.feather'))
-            df_env.to_feather(os.path.join('../experiments/' + modelname + '/batch_{}'.format(i) + 'envs.feather'))
 
-def todf(env_batch):
-    columns = ['' '']
-
+            plinko_plot.plot_pred_target(samples, targets, range(1),filename=(modelname + 'fullsim{}'.format(batch_i)))
 
 if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -101,17 +133,53 @@ if __name__ == '__main__':
     torch.set_default_tensor_type('torch.FloatTensor')
     epsilon = sys.float_info.epsilon
 
-    # load data
-    states, envs, sim_df, env_df = loaddata(run_indices = range(20), outdf = True)
-    dataset = SimulationDataset(envs, states)
+    ## load data
+    test_states, test_envs, test_sim_df, test_env_df = loaddata(run_indices = range(20), outdf = True,basedir = '../data/simulations/')
+    test_set = SimulationDataset(test_envs, test_states)
 
-    # define model
-    model = GRUPredictor(env_size=envs.shape[1], state_size=2, num_gaussians=4).to(device)
+    train_states, train_envs, train_sim_df, train_env_df = loaddata(run_indices = range(80), outdf = True,basedir = '../data/training/')
+    train_set = SimulationDataset(train_envs, train_states)
 
-    # train model;
-    # optimizer = optim.SGD(model.parameters(), lr=.001)
-    optimizer = optim.Adam(model.parameters(), weight_decay=.001)
-    model = train_model(model, optimizer,sim_df, dataset)
+    cv_states, cv_envs, cv_sim_df, cv_env_df = loaddata(run_indices = range(81,100), outdf = True,basedir = '../data/training/')
+    cv_set = SimulationDataset(cv_envs, cv_states)
 
-    # simulate from trained model
-    simulate_model(model, dataset,sim_df, env_df)
+    # define models and run cross validation
+    n_gauss_list = [1,2,4,8,16]
+    n_rnn_list  = [1,2,4,8,16]
+    all_cvloglikes = []
+    all_names = []
+    all_ngauss =[]
+    all_nrnn = []
+
+    for ngauss in n_gauss_list:
+        for nrnn in n_rnn_list:
+            name = 'gru_ngauss={}_nrnn={}'.format(ngauss,nrnn)
+            all_names.append(name)
+            all_ngauss.append(ngauss)
+            all_nrnn.append(nrnn)
+
+            # define model
+            model = GRUPredictor(env_size=train_envs.shape[1], state_size=2, num_gaussians=ngauss,num_rnn = nrnn).to(device)
+
+            # train model
+            optimizer = optim.Adam(model.parameters(), weight_decay=.001)
+            model = train_model(model, optimizer, train_sim_df, train_set,epochs = 1000, savename = ('../experiments/gru_cv/' + name))
+
+            # get loglikelihood and simulate
+            with torch.no_grad():
+                loss, logp_loss, mse_loss = test_model_loglike(model, cv_sim_df, cv_set, savename = ('../experiments/gru_cv/' + name))
+                all_cvloglikes.append(loss)
+
+                simulate_model(model, cv_set, cv_sim_df, cv_env_df, modelname= ('../experiments/gru_cv/' + name))
+
+    bestidx = all_cvloglikes.index(min(all_cvloglikes))
+    print('Model with lowest cv error: '.format(all_names[bestidx]))
+
+    cvdata = {'Name': all_names,
+            'loglike': all_cvloglikes,
+            'N_gaussian': all_ngauss,
+            'N_rnn_layer': all_nrnn}
+
+    torch.save(pd.DataFrame(cvdata), 'cvmodels')
+
+    # print test error and the training loss

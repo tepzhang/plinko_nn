@@ -6,7 +6,7 @@ from ..misc import utils
 from ..misc.gaussianmixture import GaussianMixture
 import sys
 
-epsilon = epsilon = sys.float_info.epsilon
+epsilon = sys.float_info.epsilon
 
 
 class GRUPredictor(nn.Module):
@@ -17,6 +17,7 @@ class GRUPredictor(nn.Module):
                  env_embed_size=32,
                  state_embed_size=16,
                  num_gaussians=8,
+                 num_rnn = 2,
                  trainable_h0=False
                  ):
         super(GRUPredictor, self).__init__()
@@ -24,6 +25,7 @@ class GRUPredictor(nn.Module):
         self.state_size = state_size
         self.env_embed_size = env_embed_size
         self.num_gaussians = num_gaussians
+        self.num_rnn = num_rnn
         self.hidden_size = 128
         self.trainable_h0 = trainable_h0
 
@@ -35,7 +37,7 @@ class GRUPredictor(nn.Module):
                                   output_size=state_embed_size)
         self.gru = nn.GRU(input_size=env_embed_size + state_embed_size,
                           hidden_size=self.hidden_size,
-                          num_layers=2)
+                          num_layers=self.num_rnn)
         self.mlp = MLP(input_size=self.hidden_size,
                        hidden_layer_size=self.hidden_size,
                        output_size=[self.num_gaussians,  # alpha
