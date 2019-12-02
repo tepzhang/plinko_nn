@@ -12,7 +12,7 @@ def main():
     pass
 
 
-def get_config():
+def get_config(no_noise = False):
     """
     Creates the main configuration file.
     Random choices: Obstacle positions and in what hole the ball is dropped
@@ -81,12 +81,12 @@ def get_config():
     }
 
     # random choices
-    c = random_choices(c)
+    c = random_choices(c, no_noise)
 
     return c
 
 
-def random_choices(c):
+def random_choices(c, no_noise = False):
     # SHAPE POSITIONS
 
     # 9 possible positions for the different shapes
@@ -116,8 +116,12 @@ def random_choices(c):
 
     # perturb obstacle positions and rotate
     for idx, key in enumerate(c['obstacles']):
-        c['obstacles'][key]['position'] = {k: shape_positions[idx][k] + randint(-10, 10) for k in shape_positions[idx]}
-        c['obstacles'][key]['rotation'] = uniform(0, 2 * pi)
+        if no_noise:
+            c['obstacles'][key]['position'] = {k: shape_positions[idx][k] for k in shape_positions[idx]}
+            c['obstacles'][key]['rotation'] = 0
+        else:
+            c['obstacles'][key]['position'] = {k: shape_positions[idx][k] + randint(-10, 10) for k in shape_positions[idx]}
+            c['obstacles'][key]['rotation'] = uniform(0, 2 * pi)
 
     # DROP BALL IN ONE OF THE HOLES
     c['hole_dropped_into'] = choice(range(len(c['hole_positions'])))
