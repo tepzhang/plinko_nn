@@ -5,6 +5,7 @@
 from __future__ import division
 import numpy as np
 import json
+import pymunk
 
 # import files
 from . import config
@@ -23,6 +24,24 @@ def generate_ngon(n, rad):
     for i in range(n):
         pts.append((np.sin(ang * i) * rad, np.cos(ang * i) * rad))
     return pts
+
+
+def get_vertices(ngon, radius, x, y, angle):
+    """
+    ngon: number of sides of the polygon
+    Assumes that angles are in [0, 2pi]
+    """
+    rigid_body = pymunk.Body(body_type=pymunk.Body.STATIC)
+    polygon = generate_ngon(ngon, radius)
+    shape = pymunk.Poly(rigid_body, polygon)
+    rigid_body.pos = (x, y)
+    rigid_body.angle = angle
+
+    vertices = []
+    for v in shape.get_vertices():
+        x, y = v.rotated(shape.body.angle) + shape.body.pos
+        vertices.append([x, y])
+    return np.array(vertices)
 
 
 def gaussian_noise(mean=0, sd=1):
