@@ -30,9 +30,9 @@ def plot_pred_target(prediction, target, sim_range=range(10), title = "Predictio
         + labs(title = title))
     print(p)
     if filename is not None:
-    ggsave(filename=filename,
-            plot=p,
-            device='png')
+        ggsave(filename=filename,
+                plot=p,
+                device='png')
 
 def plot_pred_gaussian(pred_mu, target, sigma, sim_index = 0, alpha = .3, 
                        title = "95% ellipse of predicted gaussian", color = 'salmon'):
