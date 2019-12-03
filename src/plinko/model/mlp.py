@@ -44,8 +44,17 @@ class MLP(nn.Module):
         else:
             x = torch.cat(inputs, dim=-1)
 
-        for layer in self.layers:
-            x = layer(x)
+        if type(self.activation) is list:
+            i = 0
+            for layer in self.layers:
+                x = self.activation[i](layer(x))
+                i += 1
+                if len(self.activation) < i:
+                    raise NameError('check number of activation functions')
+        else:
+            for layer in self.layers:
+                x = self.activation(layer(x))
+
 
         if len(self.output_size) is 1:
             return x
