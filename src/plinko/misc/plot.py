@@ -38,6 +38,24 @@ def plot_pred_target(prediction, target, sim_range=range(10), alpha = .5,
                 plot=p,
                 device='png')
 
+
+def simulate_model(model, dataset, sim_t = 1):
+    """
+    :sim_t = how many time points to feed in for the simulation
+    """
+    dataloader = DataLoader(dataset, batch_size=len(dataset), shuffle=False)
+    i = 0
+    for batch in dataloader:
+        i += 1
+        with torch.no_grad():
+            inter_gm, extra_gm, samples = model(batch['envs'], batch['states'][:, 0:sim_t, :2], dataset[0]['states'].shape[0] - sim_t)
+            targets = batch['targets'][:,1:101, :2]
+            envs = batch['envs']
+#             df_env, df_ball = data_utils.create_simdata_from_samples(samples, batch['envs'],sim_df, env_df)
+            
+            return samples, targets, envs
+
+
 def plot_pred_sim_target(prediction, simulation, target, env, sim_range=range(10), env_index = 0,
                         alpha = .5, title = "Prediction vs. simulation vs. target", filename=None):
     """
