@@ -4,9 +4,12 @@ import matplotlib.pyplot as plt
 from plotnine import *
 import torch
 from . import utils
+from . import data_utils
+import math
 
 
-def plot_pred_target(prediction, target, sim_range=range(10), title = "Prediction (x_t+1|x_t) vs. target",filename=None):
+def plot_pred_target(prediction, target, sim_range=range(10), alpha = .5,
+        title = "Prediction (x_t+1|x_t) vs. target",filename=None):
     """
     :prediction: a tensor of predicted positions
     :target: a tensor of target
@@ -24,9 +27,10 @@ def plot_pred_target(prediction, target, sim_range=range(10), title = "Predictio
         df = df.append(df_combined)
 
     p = (ggplot(df, aes('px', 'py', color = 'source', grouping = 'run'))
-        + geom_path(alpha = .2)
-        +geom_point(alpha = .2)
+        + geom_path(alpha = alpha)
+        +geom_point(alpha = alpha)
         +xlim(0, 10)
+        +ylim(0, 10)
         + labs(title = title))
     print(p)
     if filename is not None:
@@ -34,8 +38,70 @@ def plot_pred_target(prediction, target, sim_range=range(10), title = "Predictio
                 plot=p,
                 device='png')
 
+def plot_pred_sim_target(prediction, simulation, target, env, sim_range=range(10), env_index = 0,
+                        alpha = .5, title = "Prediction vs. simulation vs. target", filename=None):
+    """
+    :prediction: a tensor list of predicted positions
+    :simulation: a tensor list of simulation results
+    :target: a tensor list of target
+    :env: a tensor list containing the environment information in (x, y, r)
+    :sim_range: index numbers of simulation to plot
+    :env_index: index of which world to plot
+    :return: plot the path of target and prediction
+    """
+    df_env_single = pd.DataFrame(env[env_index].data.cpu().numpy()[:9].reshape(1, 9), columns = ['triangle_x', 'triangle_y',
+    'triangle_r', 'rectangle_x', 'rectangle_y', 'rectangle_r', 'pentagon_x',
+    'pentagon_y', 'pentagon_r'])
+    df_env_trans = pd.DataFrame()
+    for col in df_env_single.columns:
+        if col[-1] == 'x' or col[-1] == 'y':
+            df_env_trans[col] = df_env_single[col] * 70
+        else:
+            df_env_trans[col] = df_env_single[col] * 2 * math.pi / 10
+    df_env_trans['simulation'] = 'sim_' + str(env_index)
+    df_env_shapes = data_utils.make_shape_df(df_env_trans)
+    df_env_shapes
+    df_env_shapes_long = pd.melt(df_env_shapes, id_vars='simulation')
+    new = df_env_shapes_long["variable"].str.split("_", n = 2, expand = True)   
+    df_env_shapes_long["shape"]= new[0]   
+    df_env_shapes_long["coordinates"]= new[1].str[:2]
+    df_env_shapes_long["number"]= df_env_shapes_long["variable"].str[-1:]
+    df_env_shapes_long = df_env_shapes_long.drop(columns = "variable")
+    df_env_shapes_long = df_env_shapes_long.pivot_table(index=['simulation', 'shape', 'number'], columns='coordinates',values='value').reset_index()
+    df_env_shapes_long = df_env_shapes_long.reset_index()
+
+
+    df = pd.DataFrame()
+    for i in sim_range:
+        df_pred = pd.DataFrame(prediction[i].data.cpu().numpy(),columns = ['px', 'py'])
+        df_pred['source'] = 'pred'
+        df_sim = pd.DataFrame(simulation[i].data.cpu().numpy(),columns = ['px', 'py'])
+        df_sim['source'] = 'sim'
+        df_target = pd.DataFrame(target[i].data.cpu().numpy(),columns = ['px', 'py'])
+        df_target['source'] = 'target'
+        df_combined = df_pred.append(df_sim)
+        df_combined = df_combined.append(df_target)
+        df_combined['run'] = str(i)
+        df = df.append(df_combined)
+    # revert back to the original size
+    df['px'] *= 70 
+    df['py'] *= 70 
+
+    p = (ggplot(df, aes('px', 'py', color = 'source', grouping = 'run'))
+        + geom_polygon(df_env_shapes_long, aes('vx', 'vy', fill = 'shape'), color = 'black', inherit_aes = False)
+        + geom_path(alpha = alpha)
+        # +geom_point(alpha = alpha)
+        + scale_x_continuous(limits = [0, 700], expand = [0, 0])
+        + scale_y_continuous(limits = [0, 650], expand = [0, 0])
+        + labs(title = title, x = 'x', y = 'y'))
+    print(p)
+    if filename is not None:
+        ggsave(filename=filename,
+                plot=p,
+                device='png')
+
 def plot_pred_gaussian(pred_mu, target, sigma, sim_index = 0, alpha = .3, 
-                       title = "95% ellipse of predicted gaussian", color = 'salmon'):
+                       title = "95% ellipse of predicted gaussian", pred_color = 'black', target_color = 'salmon'):
     """
     :pred_mu: a tensor of predicted positions at a certain epoch
     :target: a tensor of target at a certain epoch or None
@@ -78,19 +144,19 @@ def plot_pred_gaussian(pred_mu, target, sigma, sim_index = 0, alpha = .3,
     
     if target is None: 
         p = (ggplot(sample, aes('x', 'y')) 
-            + geom_path(data = df_pred_mu, mapping = aes('px', 'py'), alpha = alpha) 
-            + geom_point(data = df_pred_mu, mapping = aes('px', 'py'), alpha = alpha) 
-            + stat_ellipse(aes(group = 'time'), alpha = alpha)
+            + geom_path(data = df_pred_mu, mapping = aes('px', 'py'), alpha = alpha, color = pred_color) 
+            # + geom_point(data = df_pred_mu, mapping = aes('px', 'py'), alpha = alpha) 
+            + stat_ellipse(aes(group = 'time'), alpha = .2, color = pred_color)
             + xlim(0, 10)
             + ylim(0, 10)
             + labs(title = title))
     else:
         p = (ggplot(sample, aes('x', 'y')) 
-            + geom_path(data = df_target_mu, mapping = aes('px', 'py'), alpha = alpha, color = color) 
-            + geom_point(data = df_target_mu, mapping = aes('px', 'py'), alpha = alpha, color = color) 
-            + geom_path(data = df_pred_mu, mapping = aes('px', 'py'), alpha = alpha) 
-            + geom_point(data = df_pred_mu, mapping = aes('px', 'py'), alpha = alpha) 
-            + stat_ellipse(aes(group = 'time'), alpha = alpha)
+            + geom_path(data = df_target_mu, mapping = aes('px', 'py'), alpha = alpha, color = target_color) 
+            # + geom_point(data = df_target_mu, mapping = aes('px', 'py'), alpha = alpha, color = color) 
+            + geom_path(data = df_pred_mu, mapping = aes('px', 'py'), alpha = alpha, color = pred_color) 
+            # + geom_point(data = df_pred_mu, mapping = aes('px', 'py'), alpha = alpha) 
+            + stat_ellipse(aes(group = 'time'), alpha = .2, color = pred_color)
             + xlim(0, 10)
             + ylim(0, 10)
             + labs(title = title))
