@@ -2,6 +2,7 @@ import json
 import pandas as pd
 from pathlib import Path
 from tqdm import tqdm
+import math
 from ..simulation import config
 from ..simulation import utils
 from ..simulation import engine
@@ -124,6 +125,7 @@ def load_df_sim(sim_directory):
 
 
 def create_sim_data(num_sims, runs=3):
+    # TODO: can use get_sim_df for most of this code, should refactor sometime
     configs = []
     for i in range(num_sims):
         c = config.get_config()
@@ -154,5 +156,47 @@ def create_sim_data(num_sims, runs=3):
     df_env = pd.DataFrame(env_rows)
     df_ball = pd.DataFrame(ball_rows)
     df_col = pd.DataFrame(collision_rows)
+
+    return df_env, df_ball, df_col
+
+
+def get_sim_df(config_raw, sim_raw, scale=100):
+    """
+    Converts a config and simulation from simulation.config.get_config and simulation.engine.run_simulation
+    into pandas dataframes
+    :param config_raw: result of get_config
+    :param sim_raw: result of run_simulation
+    :param scale: rescale factor for plinko box dimensions
+    :return:
+        df_env: dataframe describing the box configuration
+        df_ball: dataframe describing the state of the ball at each timestep
+        df_col: dataframe describing collisions, if any
+    """
+    env_rows = []
+    ball_rows = []
+    collision_rows = []
+
+    for sim, config in config_raw.items():
+        env_row = {'simulation': sim}
+        env_row = utils.merge_dicts(env_row, extract_obstacles(config['obstacles']))
+        env_rows.append(env_row)
+
+    for (sim, run), simdata in sim_raw.items():
+        row = {'simulation': sim, 'run': run}
+        ball_rows += [utils.merge_dicts(row, ball_data) for ball_data in extract_ball_data(simdata)]
+        collision_rows += [utils.merge_dicts(row, col) for col in extract_collision_data(simdata)]
+
+    df_env = pd.DataFrame(env_rows)
+    df_ball = pd.DataFrame(ball_rows)
+    df_col = pd.DataFrame(collision_rows)
+
+    for c in df_env.columns:
+        if '_x' in c or '_y' in c:
+            df_env[c] /= scale
+        elif '_r' in c:
+            df_env[c] /= 2 * math.pi
+
+    for c in ['px', 'py', 'vx', 'vy']:
+        df_ball[c] /= scale
 
     return df_env, df_ball, df_col

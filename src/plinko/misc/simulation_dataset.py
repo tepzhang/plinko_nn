@@ -10,8 +10,8 @@ class SimulationDataset(Dataset):
         self.envs = envs
         self.states = states
 
-        self.inputs = states[:, :-1, :2]
-        self.targets = states[:, 1:, :2]
+        self.inputs = states[:, :-1]
+        self.targets = states[:, 1:]
 
     def __len__(self):
         return len(self.envs)

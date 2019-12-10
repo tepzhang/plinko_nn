@@ -6,6 +6,7 @@
 import os
 import shutil
 import pygame
+from tqdm.auto import tqdm
 from numpy import array, cos, dot, pi, sin
 from pygame.color import THECOLORS
 from pygame.constants import QUIT, KEYDOWN, K_ESCAPE
@@ -24,7 +25,7 @@ def main():
     visualize(c, sim_data)
 
 
-def visualize(c, sim_data, save_images=False, make_video=False, video_name='test'):
+def visualize(c, sim_data, show=False, image_path=None, make_video=False, video_name='test'):
     """
     Visualize the world.
     save_images: set True to save images
@@ -38,18 +39,17 @@ def visualize(c, sim_data, save_images=False, make_video=False, video_name='test
     rotated = rotate_shapes(c)
 
     # make temporary directory for images
-    if save_images:
-        img_dir = 'images_temp'
+    if image_path is not None:
         try:
-            shutil.rmtree(img_dir)
+            shutil.rmtree(image_path)
         except:
             pass
-        os.mkdir(img_dir)
+        os.mkdir(image_path)
 
     for t, frame in enumerate(sim_data['ball_position']):
         screen.fill(THECOLORS['white'])
 
-        colors = [THECOLORS['blue'], THECOLORS['red'], THECOLORS['green']]
+        colors = [THECOLORS['black'], THECOLORS['black'], THECOLORS['black']]
 
         # draw objects
         draw_obstacles(rotated, screen, colors)
@@ -61,24 +61,24 @@ def visualize(c, sim_data, save_images=False, make_video=False, video_name='test
         pygame.display.flip()
         # pygame.time.wait(1)
 
-        if save_images:
-            pygame.image.save(screen, os.path.join(img_dir, '%05d' % t + '.png'))
+        if image_path is not None:
+            pygame.image.save(screen, os.path.join(image_path, '%05d' % t + '.bmp'))
 
     if make_video:
         import subprocess as sp
         sp.call(
             'ffmpeg -y -framerate 60 -i {ims}  -c:v libx264 -profile:v high -crf 10 -pix_fmt yuv420p {videoname}.mp4'.format(
-                ims=img_dir + "/\'%05d.png\'", videoname="data/videos/" + video_name), shell=True)
-        shutil.rmtree(img_dir)  # remove temporary directory
+                ims=image_path + "/\'%05d.png\'", videoname="data/videos/" + video_name), shell=True)
+        shutil.rmtree(image_path)  # remove temporary directory
 
-    running = True
+    # running = True
 
-    while running:
-        for e in pygame.event.get():
-            if e.type == QUIT:
-                running = False
-            elif e.type == KEYDOWN and e.key == K_ESCAPE:
-                running = False
+    # while running:
+    #     for e in pygame.event.get():
+    #         if e.type == QUIT:
+    #             running = False
+    #         elif e.type == KEYDOWN and e.key == K_ESCAPE:
+    #             running = False
 
 
 def snapshot(c, image_path, image_name):
@@ -140,7 +140,7 @@ def draw_ball(c, screen, frame):
     pygame.draw.circle(screen,
                        THECOLORS['black'],
                        (int(frame['x']), int(utils.flipy(c, frame['y']))),
-                       c['ball_radius'])
+                       round(c['ball_radius']))
 
 
 def draw_walls(c, screen):
