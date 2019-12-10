@@ -1,5 +1,7 @@
 import torch.nn as nn
+from .mlp import MLP
 from ..misc import utils
+
 
 class RelationalLayer(nn.Module):
     def __init__(self,

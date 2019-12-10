@@ -45,7 +45,7 @@ class MLP(nn.Module):
             x = torch.cat(inputs, dim=-1)
 
         for layer in self.layers:
-            x = layer(x)
+            x = self.activation(layer(x))
 
         if len(self.output_size) is 1:
             return x
