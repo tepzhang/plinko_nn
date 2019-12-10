@@ -10,6 +10,13 @@ class SimulationDataset(Dataset):
         self.envs = envs
         self.states = states
 
+        # # print('state shape is ', states.shape)
+        # if states.shape[2] == 3:
+        #     # print('add col in states')
+        #     self.inputs = states[:, :-1, :3]
+        # else:
+        #     self.inputs = states[:, :-1, :2]
+        # self.targets = states[:, 1:, :2]
         self.inputs = states[:, :-1]
         self.targets = states[:, 1:]
 

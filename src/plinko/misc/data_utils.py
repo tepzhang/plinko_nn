@@ -60,12 +60,17 @@ def resize(simulations, environments, max_dim=1, max_angle=1):
     return simulations, environments
 
 
-def create_task_df(selected_runs, df_ball, df_env,append_t0 = True):
+def create_task_df(selected_runs, df_ball, df_env, df_col = None, append_t0 = True):
     """
     selected_runs: pd.DataFrame with columns 'simulation' and 'run'
     """
     selected_runs = selected_runs[['simulation', 'run']]
     simulations = selected_runs.merge(df_ball, how='inner')
+    if df_col is not None:
+        df_col['col'] = int(1)
+        simulations = simulations.merge(df_col, how='left')
+        simulations['col'][np.isnan(simulations['col'])] = int(0)
+        simulations = simulations.drop(columns="object")
     environments = df_env[df_env.simulation.isin(set(selected_runs.simulation.unique()))]
     simulations, environments = resize(simulations, environments, 10, 10) # why resize??
 
@@ -96,7 +101,13 @@ def to_tensors(simulations, environments, device, include_v=False, outdf = False
                         device=device)
 
     # state tensor
-    states = np.zeros(((envs).shape[0], sim_df.t.max() + 1, 4 if include_v else 2))
+    if 'col' in sim_df:
+        # print('yes in sim_df')
+        # states = np.zeros(((envs).shape[0], sim_df.t.max() + 1, 3))
+        states = np.zeros(((envs).shape[0], sim_df.t.max() + 1, 5 if include_v else 3))
+    else:
+        # states = np.zeros(((envs).shape[0], sim_df.t.max() + 1, 2))
+        states = np.zeros(((envs).shape[0], sim_df.t.max() + 1, 4 if include_v else 2))
     sim = None
     t = None
     state = None
@@ -110,8 +121,13 @@ def to_tensors(simulations, environments, device, include_v=False, outdf = False
         t = record.t
         if include_v:
             state = [record.px, record.py, record.vx, record.vy]
+            if 'col' in sim_df:
+                state = [record.px, record.py, record.vx, record.vy, record.col]
         else:
             state = [record.px, record.py]
+            if 'col' in sim_df:
+                state = [record.px, record.py, record.col]
+
         states[sim_i, t] = state
 
     # if a simulation ended before max_t, pad it with the current state

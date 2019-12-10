@@ -124,14 +124,19 @@ def load_df_sim(sim_directory):
     return df_env, df_ball, df_col
 
 
-def create_sim_data(num_sims, runs=3):
+def create_sim_data(num_sims, runs=3, no_noise = False):
     # TODO: can use get_sim_df for most of this code, should refactor sometime
     configs = []
     for i in range(num_sims):
-        c = config.get_config()
-        c['collision_noise_mean'] = .8
-        c['collision_noise_sd'] = .2
-        c['drop_noise'] = 0.2
+        c = config.get_config(no_noise)
+        if no_noise:
+            c['collision_noise_mean'] = .8
+            c['collision_noise_sd'] = 0
+            c['drop_noise'] = 0
+        else:
+            c['collision_noise_mean'] = .8
+            c['collision_noise_sd'] = .2
+            c['drop_noise'] = 0.2
         configs.append(c)
 
     env_rows = []
