@@ -18,6 +18,8 @@ from torch.utils.data import DataLoader
 from plinko.misc import data_utils
 from plinko.misc.simulation_dataset import SimulationDataset
 from plinko.model.predictor_gru import GRUPredictor
+from plinko.model.predictor_gru import GRUPredictor_mu
+from plinko.misc import plot as plinko_plot
 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -48,11 +50,12 @@ def get_mu_mse_loss(gm, targets):
     return F.mse_loss(gm.mu[:,:,0], targets)
 
 
-model = GRUPredictor(env_size=11, state_size=2, num_gaussians=2).to(device)
+# model = GRUPredictor(env_size=11, state_size=2, num_gaussians=2).to(device)
+model = GRUPredictor_mu(env_size=11, state_size=2, num_gaussians=1, trainable_h0 = True).to(device)
 # optimizer = optim.SGD(model.parameters(), lr=.001)
 optimizer = optim.Adam(model.parameters(), lr = 2e-4, weight_decay=.001)
 dataset = SimulationDataset(envs, states)
-dataloader = DataLoader(dataset, batch_size=16, shuffle=False)
+dataloader = DataLoader(dataset, batch_size=64, shuffle=False)
 
 
 max_t = simulations.t.max()
@@ -74,7 +77,7 @@ for epoch in tqdm(range(epochs+1)):
         
         logp_loss = get_logp_loss(gm, targets)
         mse_loss = 10*get_mu_mse_loss(gm, targets)
-        loss = logp_loss # + mse_loss
+        loss = logp_loss + mse_loss
         loss.backward(retain_graph=True)
         optimizer.step()
         epoch_loss += loss
@@ -100,8 +103,30 @@ for epoch in tqdm(range(epochs+1)):
                                                                  round(float(epoch_loss), 4)))
 
     
-torch.save(model.state_dict(), 'gru.model')
-torch.save(mu_overtime, 'mu_overtime.pt')
-torch.save(sigma_overtime, 'sigma_overtime.pt')
-torch.save(target_overtime, 'target_overtime.pt')
-torch.save(losses, 'losses.pt')
+# torch.save(model.state_dict(), 'gru.model')
+# torch.save(mu_overtime, 'mu_overtime.pt')
+# torch.save(sigma_overtime, 'sigma_overtime.pt')
+# torch.save(target_overtime, 'target_overtime.pt')
+# torch.save(losses, 'losses.pt')
+
+
+
+def simulate_model(model, dataset, sim_t = 1):
+    """
+    :sim_t = how many time points to feed in for the simulation
+    """
+    dataloader = DataLoader(dataset, batch_size=len(dataset), shuffle=False)
+    i = 0
+    for batch in dataloader:
+        i += 1
+        with torch.no_grad():
+            inter_gm, extra_gm, samples = model(batch['envs'], batch['states'][:, 0:sim_t, :2], dataset[0]['states'].shape[0] - sim_t)
+            targets = batch['targets'][:,1:101]
+#             df_env, df_ball = data_utils.create_simdata_from_samples(samples, batch['envs'],sim_df, env_df)
+            
+            return samples, targets
+
+
+sim_samples, sim_targets = simulate_model(model, dataset, sim_t = 1)
+plinko_plot.plot_pred_target(sim_samples, sim_targets, sim_range=range(5), 
+                             title = "Full simulation: prediction vs. target")
