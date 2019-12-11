@@ -290,7 +290,10 @@ class GRUPredictor_determ(nn.Module):
             h_n = torch.zeros(self.gru.num_layers, batch_size, self.hidden_size, dtype=torch.float, device=h_env.device)
 
         h_env = utils.expand_along_dim(h_env, t, 0)
+        next_t = states[:, :, 4] + 1
+        next_t = next_t.view(next_t.shape[0], next_t.shape[1], -1)
         states = states.permute(1, 0, 2)
+
         states = self.state_embedder(states)
         h = torch.cat([h_env, states], dim=-1)
 
@@ -300,17 +303,19 @@ class GRUPredictor_determ(nn.Module):
         v = v.permute(1, 0, 2)
         # print('p shape is ', p.shape)
         # print('v shape is ', v.shape)
-        return h_n, p, v
+        return h_n, p, v, next_t
 
-    def predict_using_sampled_states(self, h_env, h_n, p, v, predict_t):
+    def predict_using_sampled_states(self, h_env, h_n, p, v, t, predict_t):
         """
         At each t, samples a state at t to predict the mu for t+1
         """
-        state = torch.cat([p[:, -1], v[:, -1]], dim = -1)
+        state = torch.cat([p[:, -1], v[:, -1], t[:, -1]], dim = -1)
 
         samples_p = [p[:, -1]]
         samples_v = [v[:, -1]]
         for i in range(predict_t - 1):
+            next_t = state[:, 4] + 1
+            next_t = next_t.view(next_t.shape[0], -1)
             state = self.state_embedder(state)
 #             print('h_env shape:', h_env.shape)
 #             print('state shape:', state.shape)
@@ -318,8 +323,9 @@ class GRUPredictor_determ(nn.Module):
             h, h_n = self.gru(h, h_n)
             p, v = self.mlp(h.squeeze(0))
             # print('p shape is ', p.shape)
-            # print('v shape is ', v.shape)
-            state = torch.cat([p, v], dim=-1)
+            # print('v shape is ', v.shape)            
+            # print('t shape is ', next_t.shape)
+            state = torch.cat([p, v, next_t], dim=-1)
             samples_p.append(p)
             samples_v.append(v)
         return torch.stack(samples_p, dim=1), torch.stack(samples_v, dim=1)
@@ -333,11 +339,11 @@ class GRUPredictor_determ(nn.Module):
         """
         h_env = self.env_embedder(envs)
         h_env = F.relu(h_env)
-        h_n, p, v = self.predict_using_true_states(h_env, states)
+        h_n, p, v, next_t = self.predict_using_true_states(h_env, states)
 
         # predict max_t future states by sampling from last GM
         if predict_t > 0:
-            samples_p, samples_v = self.predict_using_sampled_states(h_env, h_n, p, v, predict_t)
+            samples_p, samples_v = self.predict_using_sampled_states(h_env, h_n, p, v, next_t, predict_t)
             return samples_p, samples_v
         else:
-            return p, v
+            return p, v, next_t
