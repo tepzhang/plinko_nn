@@ -248,6 +248,7 @@ class GRUPredictor_determ(nn.Module):
                  state_size,
                  env_embed_size=32,
                  state_embed_size=16,
+                 gru_hidden_size=64,
                  num_gaussians=8,
                  trainable_h0=False
                  ):
@@ -256,7 +257,7 @@ class GRUPredictor_determ(nn.Module):
         self.state_size = state_size
         self.env_embed_size = env_embed_size
         self.num_gaussians = num_gaussians
-        self.hidden_size = 128
+        self.hidden_size = gru_hidden_size
         self.trainable_h0 = trainable_h0
 
         self.env_embedder = MLP(input_size=env_size,
@@ -311,8 +312,8 @@ class GRUPredictor_determ(nn.Module):
         samples_v = [v[:, -1]]
         for i in range(predict_t - 1):
             state = self.state_embedder(state)
-            print('h_env shape:', h_env.shape)
-            print('state shape:', state.shape)
+#             print('h_env shape:', h_env.shape)
+#             print('state shape:', state.shape)
             h = torch.cat([h_env, state], dim=-1).unsqueeze(0)
             h, h_n = self.gru(h, h_n)
             p, v = self.mlp(h.squeeze(0))
