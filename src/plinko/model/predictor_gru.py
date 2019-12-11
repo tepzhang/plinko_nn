@@ -290,7 +290,7 @@ class GRUPredictor_determ(nn.Module):
             h_n = torch.zeros(self.gru.num_layers, batch_size, self.hidden_size, dtype=torch.float, device=h_env.device)
 
         h_env = utils.expand_along_dim(h_env, t, 0)
-        next_t = states[:, :, 4] + 1
+        next_t = states[:, :, state_size - 1] + 1
         next_t = next_t.view(next_t.shape[0], next_t.shape[1], -1)
         states = states.permute(1, 0, 2)
 
@@ -314,7 +314,7 @@ class GRUPredictor_determ(nn.Module):
         samples_p = [p[:, -1]]
         samples_v = [v[:, -1]]
         for i in range(predict_t - 1):
-            next_t = state[:, 4] + 1
+            next_t = t[:, -1] + 1
             next_t = next_t.view(next_t.shape[0], -1)
             state = self.state_embedder(state)
 #             print('h_env shape:', h_env.shape)

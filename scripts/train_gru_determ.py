@@ -39,17 +39,31 @@ df_col = pd.read_feather(repo_path + '/data/simulations/sim_collisions.feather')
 # df_env = pd.read_feather(repo_path + '/data/training/sim_environment.feather')
 # df_col = pd.read_feather(repo_path + '/data/training/sim_collisions.feather')
 
-sim_data = data_utils.get_sim_data(df_ball, df_col)
+# create df with collision data
+collisions = df_col.copy()
+collisions = collisions.rename({'object': 'collision'}, axis=1)
+collisions.t -= 1
+collisions = df_ball.merge(collisions, how='left')
+collisions.collision[collisions.collision.isna()] = 'none'
+collisions.collision[(collisions.collision == 'walls') & (collisions.px < 100)] = 'left_wall'
+collisions.collision[(collisions.collision == 'walls') & (collisions.px > 500)] = 'right_wall'
+collisions = collisions.sort_values(['simulation', 'run', 't'])
+idx2col = sorted(collisions.collision.unique())
+col2idx = {c: i for c, i in zip(idx2col, range(len(idx2col)))}
+collisions['col'] = [col2idx[c] for c in collisions.collision]
+df_collision = collisions.drop(columns="collision")
+
+sim_data = data_utils.get_sim_data(df_collision, df_col)
 selected_runs = sim_data[(sim_data.num_collisions == 2)
                          & (sim_data.duration < 80)
-                         & (sim_data.run <= 20)]
-simulations, environments = data_utils.create_task_df(selected_runs, df_ball, df_env)
+                         & (sim_data.run <= 5)]
+simulations, environments = data_utils.create_task_df(selected_runs, df_collision, df_env)
 states, envs = data_utils.to_tensors(simulations, environments, device, include_v=True, include_t=True)
 states[:, :, 2:4] = (states[:, :, 2:4] + 20) # transform velocity to all positive
 
 # model = GRUPredictor_mu(env_size=11, state_size=2, num_gaussians=1, trainable_h0 = True).to(device)
-model = GRUPredictor_determ(env_size=11, state_size=4, gru_hidden_size=64, num_gaussians=1, trainable_h0=True).to(device)
-optimizer = optim.Adam(model.parameters(), lr = 5e-4, weight_decay=.001)
+model = GRUPredictor_determ(env_size=11, state_size=6, gru_hidden_size=64, num_gaussians=1, trainable_h0=True).to(device)
+optimizer = optim.Adam(model.parameters(), lr = 10e-4, weight_decay=.001)
 dataset = SimulationDataset(envs, states)
 dataloader = DataLoader(dataset, batch_size=64, shuffle=False)
 
@@ -62,7 +76,7 @@ p_overtime = []
 v_overtime = []
 target_overtime = []
 # for epoch in tqdm(range(epochs+1)):
-for epoch in tqdm(range(5)):
+for epoch in tqdm(range(3)):
     epoch_loss = 0
     epoch_p_loss = 0
     epoch_v_loss = 0
@@ -70,11 +84,11 @@ for epoch in tqdm(range(5)):
         optimizer.zero_grad()
 
         #         print('Batch ', batch_i)
-        p_batch, v_batch = model(batch['envs'], batch['states'], 0)
+        p_batch, v_batch, t_batch = model(batch['envs'], batch['states'], 0)
         targets = batch['targets']
 
         p_mse_loss = F.mse_loss(p_batch, targets[:, :, :2])
-        v_mse_loss = .002 * F.mse_loss(v_batch, targets[:, :, 2:])
+        v_mse_loss = .002 * F.mse_loss(v_batch, targets[:, :, 2:4])
         loss = p_mse_loss + v_mse_loss
         loss.backward(retain_graph=True)
         optimizer.step()
