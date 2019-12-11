@@ -28,7 +28,7 @@ def plot_pred_target(prediction, target, sim_range=range(10), alpha = .5,
 
     p = (ggplot(df, aes('px', 'py', color = 'source', grouping = 'run'))
         + geom_path(alpha = alpha)
-        +geom_point(alpha = alpha)
+        # +geom_point(alpha = alpha)
         +xlim(0, 10)
         +ylim(0, 10)
         + labs(title = title))
