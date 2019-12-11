@@ -73,7 +73,7 @@ def create_task_df(selected_runs, df_ball, df_env, df_col = None, append_t0 = Tr
     return simulations, environments
 
 
-def to_tensors(simulations, environments, device, include_v=False, outdf = False):
+def to_tensors(simulations, environments, device, include_v=False, include_t=False, outdf = False):
     """
     :param simulations:
     :param environments:
@@ -118,11 +118,17 @@ def to_tensors(simulations, environments, device, include_v=False, outdf = False
             state = [record.px, record.py]
             if 'col' in sim_df:
                 state = [record.px, record.py, record.col]
-
         states[sim_i, t] = state
 
     # if a simulation ended before max_t, pad it with the current state
     states[sim_i, t + 1:] = state
+
+    # add an input of time stamp
+    if include_t:
+        states_t = np.zeros((states.shape[0], states.shape[1], states.shape[2] + 1))
+        for i in range(states.shape[0]):
+            states_t[i] = np.column_stack((states[i], np.arange(states.shape[1]))) 
+        states = np.copy(states_t)
 
     if outdf:
         return torch.tensor(states, dtype=torch.float, device=device), envs, sim_df, env_df
