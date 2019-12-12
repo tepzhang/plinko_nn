@@ -274,14 +274,33 @@ class GRUPredictor_determ(nn.Module):
                        output_size=[2,  # px, py
                                     2]) # vx, vy
 
+        self.col_classifier = MLP(input_size=[env_size, state_size],
+            hidden_layer_size=[64, 64, 64, 64],
+            activation=F.elu,
+            output_size=7)
+
         if self.trainable_h0:
             self.register_parameter('init_gru_h',
                                     torch.nn.Parameter(torch.rand(self.gru.num_layers, self.hidden_size)))
 
-    def predict_using_true_states(self, h_env, states):
+    def predict_using_true_states(self, h_env, states, env):
         """
         At each t, given the true state at t, predict the mu for t+1
         """
+        # print('env shape', env.shape)
+        # print('states shape', states.shape)
+        env = env.unsqueeze(1)
+        # print('env shape', env.shape)
+        envs = env.expand(env.shape[0], states.shape[1], env.shape[-1])
+        # print('envs shape', envs.shape)
+        # print('envs ', envs[0])
+        col_outputs = self.col_classifier(envs.reshape(-1, envs.shape[-1]), states.reshape(-1, states.shape[-1]))
+        # col_outputs = col_outputs.view(states.shape[0], states.shape[1], -1)
+        col_pred = col_outputs.argmax(-1)
+        col_pred = col_pred.view(states.shape[0], states.shape[1], -1)
+        col_pred = torch.tensor(col_pred, dtype=torch.float, device=h_env.device)
+        # print("col_pred shape", col_pred.shape)
+        
         batch_size, t, state_size = states.shape
 
         if self.trainable_h0:
@@ -303,17 +322,26 @@ class GRUPredictor_determ(nn.Module):
         v = v.permute(1, 0, 2)
         # print('p shape is ', p.shape)
         # print('v shape is ', v.shape)
-        return h_n, p, v, next_t
+        return h_n, p, v, next_t, col_outputs, col_pred
 
-    def predict_using_sampled_states(self, h_env, h_n, p, v, t, predict_t):
+    def predict_using_sampled_states(self, h_env, h_n, p, v, t, col, env, predict_t):
         """
         At each t, samples a state at t to predict the mu for t+1
         """
-        state = torch.cat([p[:, -1], v[:, -1], t[:, -1]], dim = -1)
+        state = torch.cat([p[:, -1], v[:, -1], col[:, -1], t[:, -1]], dim = -1)
 
         samples_p = [p[:, -1]]
         samples_v = [v[:, -1]]
         for i in range(predict_t - 1):
+            # env = env.unsqueeze(1)
+            # envs = env.expand(env.shape[0], state.shape[1], env.shape[-1])
+            # print('envs.shape', env.shape)
+            # print('state.shape', state.shape)
+            col_outputs = self.col_classifier(env, state)
+            col_pred = col_outputs.argmax(-1)
+            col_pred = col_pred.view(state.shape[0], -1)
+            col_pred = torch.tensor(col_pred, dtype=torch.float, device=h_env.device)
+            # next_col = next_col.view(next_col.shape[0], -1)
             next_t = t[:, -1] + 1
             next_t = next_t.view(next_t.shape[0], -1)
             state = self.state_embedder(state)
@@ -325,7 +353,7 @@ class GRUPredictor_determ(nn.Module):
             # print('p shape is ', p.shape)
             # print('v shape is ', v.shape)            
             # print('t shape is ', next_t.shape)
-            state = torch.cat([p, v, next_t], dim=-1)
+            state = torch.cat([p, v, col_pred, next_t], dim=-1)
             samples_p.append(p)
             samples_v.append(v)
         return torch.stack(samples_p, dim=1), torch.stack(samples_v, dim=1)
@@ -339,11 +367,11 @@ class GRUPredictor_determ(nn.Module):
         """
         h_env = self.env_embedder(envs)
         h_env = F.relu(h_env)
-        h_n, p, v, next_t = self.predict_using_true_states(h_env, states)
+        h_n, p, v, next_t, col_output, col_pred = self.predict_using_true_states(h_env, states, envs)
 
         # predict max_t future states by sampling from last GM
         if predict_t > 0:
-            samples_p, samples_v = self.predict_using_sampled_states(h_env, h_n, p, v, next_t, predict_t)
+            samples_p, samples_v = self.predict_using_sampled_states(h_env, h_n, p, v, next_t, col_pred, envs, predict_t)
             return samples_p, samples_v
         else:
-            return p, v, next_t
+            return p, v, next_t, col_output
