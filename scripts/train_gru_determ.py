@@ -53,10 +53,14 @@ col2idx = {c: i for c, i in zip(idx2col, range(len(idx2col)))}
 collisions['col'] = [col2idx[c] for c in collisions.collision]
 df_collision = collisions.drop(columns="collision")
 
+# next_col = collisions.groupby(['simulation', 'run'], as_index=False).apply(lambda x: x.iloc[1:]).reset_index().col
+# df_collision = collisions.drop(columns="collision").groupby(['simulation', 'run'], as_index=False).apply(lambda x: x.iloc[:-1]).reset_index()
+# df_collision.col = next_col
+
 sim_data = data_utils.get_sim_data(df_collision, df_col)
 selected_runs = sim_data[(sim_data.num_collisions == 2)
-                         & (sim_data.duration < 80)
-                         & (sim_data.run <= 5)]
+                         & (sim_data.duration < 60)
+                         & (sim_data.run <= 1)]
 simulations, environments = data_utils.create_task_df(selected_runs, df_collision, df_env)
 states, envs = data_utils.to_tensors(simulations, environments, device, include_v=True, include_t=True)
 states[:, :, 2:4] = (states[:, :, 2:4] + 20) # transform velocity to all positive
@@ -80,21 +84,25 @@ for epoch in tqdm(range(3)):
     epoch_loss = 0
     epoch_p_loss = 0
     epoch_v_loss = 0
+    epoch_col_loss = 0
     for batch_i, batch in enumerate(dataloader):
         optimizer.zero_grad()
 
         #         print('Batch ', batch_i)
-        p_batch, v_batch, t_batch = model(batch['envs'], batch['states'], 0)
+        p_batch, v_batch, t_batch, col_outputs = model(batch['envs'], batch['states'], 0)
         targets = batch['targets']
 
         p_mse_loss = F.mse_loss(p_batch, targets[:, :, :2])
         v_mse_loss = .002 * F.mse_loss(v_batch, targets[:, :, 2:4])
-        loss = p_mse_loss + v_mse_loss
+        col_targets = torch.tensor(batch['states'][:, :, 4].reshape(-1), dtype=torch.long, device=device)
+        col_loss = F.cross_entropy(col_outputs, col_targets)
+        loss = p_mse_loss + v_mse_loss + col_loss
         loss.backward(retain_graph=True)
         optimizer.step()
         epoch_loss += loss
         epoch_p_loss += p_mse_loss
         epoch_v_loss += v_mse_loss
+        epoch_col_loss += col_loss
         losses.append((epoch, batch_i, float(loss)))
 
         p_overtime.append(p_batch)
@@ -102,9 +110,10 @@ for epoch in tqdm(range(3)):
         target_overtime.append(targets)
 
     if epoch % 1 == 0:
-        print('Epoch {} | p_loss: {} | v_loss: {} | total: {}'.format(epoch,
+        print('Epoch {} | p_loss: {} | v_loss: {} | | col_loss: {} | total: {}'.format(epoch,
                                                                       round(float(epoch_p_loss), 4),
                                                                       round(float(epoch_v_loss), 4),
+                                                                      round(float(epoch_col_loss), 4),
                                                                       round(float(epoch_loss), 4)))
 
 #     if (loss - prev_loss) < .1 and (loss - prev_loss) > -.1:
