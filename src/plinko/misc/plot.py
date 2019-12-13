@@ -57,7 +57,8 @@ def simulate_model(model, dataset, sim_t = 1):
 
 
 def plot_pred_sim_target(prediction, simulation, target, env, sim_range=range(10), env_index = 0,
-                        alpha = .5, title = "Prediction vs. simulation vs. target", filename=None):
+                        size = 1, alpha = .5, leg_position = 'none',
+                         title = "Prediction vs. simulation vs. target", filename=None):
     """
     :prediction: a tensor list of predicted positions
     :simulation: a tensor list of simulation results
@@ -107,11 +108,13 @@ def plot_pred_sim_target(prediction, simulation, target, env, sim_range=range(10
 
     p = (ggplot(df, aes('px', 'py', color = 'source', grouping = 'run'))
         + geom_polygon(df_env_shapes_long, aes('vx', 'vy', fill = 'shape'), color = 'black', inherit_aes = False)
-        + geom_path(alpha = alpha)
+        + geom_path(#aes(linetype='source'), 
+                    alpha = alpha, size = size)
         # +geom_point(alpha = alpha)
         + scale_x_continuous(limits = [0, 700], expand = [0, 0])
         + scale_y_continuous(limits = [0, 650], expand = [0, 0])
-        + labs(title = title, x = 'x', y = 'y'))
+        + labs(title = title, x = 'x', y = 'y')
+        + theme(legend_position = leg_position))
     print(p)
     if filename is not None:
         ggsave(filename=filename,
