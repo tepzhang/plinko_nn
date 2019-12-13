@@ -274,7 +274,7 @@ class GRUPredictor_determ(nn.Module):
                        output_size=[2,  # px, py
                                     2]) # vx, vy
 
-        self.col_classifier = MLP(input_size=[env_size, state_size],
+        self.col_classifier = MLP(input_size=[env_size, state_size - 2],
             hidden_layer_size=[64, 64, 64, 64],
             activation=F.elu,
             output_size=7)
@@ -294,7 +294,7 @@ class GRUPredictor_determ(nn.Module):
         envs = env.expand(env.shape[0], states.shape[1], env.shape[-1])
         # print('envs shape', envs.shape)
         # print('envs ', envs[0])
-        col_outputs = self.col_classifier(envs.reshape(-1, envs.shape[-1]), states.reshape(-1, states.shape[-1]))
+        col_outputs = self.col_classifier(envs.reshape(-1, envs.shape[-1]), states.reshape(-1, states.shape[-1])[:, :4])
         # col_outputs = col_outputs.view(states.shape[0], states.shape[1], -1)
         col_pred = col_outputs.argmax(-1)
         col_pred = col_pred.view(states.shape[0], states.shape[1], -1)
@@ -311,10 +311,11 @@ class GRUPredictor_determ(nn.Module):
         h_env = utils.expand_along_dim(h_env, t, 0)
         next_t = states[:, :, state_size - 1] + 1
         next_t = next_t.view(next_t.shape[0], next_t.shape[1], -1)
-        states = states.permute(1, 0, 2)
+#         new_states = torch.cat([states[:, :, :4], col_pred, states[:, :, 5].view(states.shape[0], states.shape[1], -1)], dim=-1).clone()
+        new_states = states.permute(1, 0, 2)
 
-        states = self.state_embedder(states)
-        h = torch.cat([h_env, states], dim=-1)
+        new_states = self.state_embedder(new_states)
+        h = torch.cat([h_env, new_states], dim=-1)
 
         h, h_n = self.gru(h, h_n)
         p, v = self.mlp(h)
@@ -337,7 +338,7 @@ class GRUPredictor_determ(nn.Module):
             # envs = env.expand(env.shape[0], state.shape[1], env.shape[-1])
             # print('envs.shape', env.shape)
             # print('state.shape', state.shape)
-            col_outputs = self.col_classifier(env, state)
+            col_outputs = self.col_classifier(env, state[:, :4])
             col_pred = col_outputs.argmax(-1)
             col_pred = col_pred.view(state.shape[0], -1)
             col_pred = torch.tensor(col_pred, dtype=torch.float, device=h_env.device)
