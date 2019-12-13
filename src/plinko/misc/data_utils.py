@@ -2,6 +2,7 @@ import math
 import numpy as np
 import torch
 import pandas as pd
+from ..simulation import utils as sim_utils
 
 def get_sim_data(df_ball, df_col):
     """
@@ -65,7 +66,7 @@ def create_task_df(selected_runs, df_ball, df_env,append_t0 = True):
 
     return simulations, environments
 
-def to_tensors(simulations, environments, device, outdf = False):
+def to_tensors(simulations, environments, device, outdf = False, outv = False):
     """
     :param simulations:
     :param environments:
@@ -83,7 +84,11 @@ def to_tensors(simulations, environments, device, outdf = False):
                         device=device)
 
     # state tensor
-    states = np.zeros(((envs).shape[0], sim_df.t.max() + 1, 2))
+    if outv:
+        states = np.zeros(((envs).shape[0], sim_df.t.max() + 1, 4))
+    else:
+        states = np.zeros(((envs).shape[0], sim_df.t.max() + 1, 2))
+
     sim = None
     t = None
     state = None
@@ -95,7 +100,10 @@ def to_tensors(simulations, environments, device, outdf = False):
         sim = record.simulation
         run = record.run
         t = record.t
-        state = [record.px, record.py]
+        if outv:
+            state = [record.px, record.py, record.vx, record.vy]
+        else:
+            state = [record.px, record.py]
         states[sim_i, t] = state
 
     # if a simulation ended before max_t, pad it with the current state
@@ -105,6 +113,23 @@ def to_tensors(simulations, environments, device, outdf = False):
         return torch.tensor(states, dtype=torch.float, device=device), envs, sim_df, env_df
     else:
         return torch.tensor(states, dtype=torch.float, device=device), envs
+
+
+def make_shape_df(df_env):
+    """
+    Generates a dataframe that converts shape info in df_env into vertices for each shape
+    Assumes that angles are in [0, 2pi]
+    """
+    triangles = get_env_vertices('triangle', 3, df_env)
+    rectangles = get_env_vertices('rectangle', 4, df_env)
+    pentagons = get_env_vertices('pentagon', 5, df_env)
+
+    shapes = df_env[['simulation']]
+    add_shapes(shapes, 'triangle', triangles)
+    add_shapes(shapes, 'rectangle', rectangles)
+    add_shapes(shapes, 'pentagon', pentagons)
+    return shapes
+
 
 def create_simdata_from_samples(simulation,environment,sim_df, env_df):
     """
@@ -130,3 +155,26 @@ def create_simdata_from_samples(simulation,environment,sim_df, env_df):
     df_ball = pd.DataFrame(ball_rows)
 
     return df_env, df_ball
+
+
+################ Helper Functions ###############
+
+def add_shapes(shapes_df, shape_name, vertices):
+    """
+    Helper function for make_shape_df
+    vertices shape: [batch_size, ngon, 2]
+    """
+    for i in range(vertices.shape[1]):
+        shapes_df['{}_vx{}'.format(shape_name, i)] = vertices[:, i, 0]
+        shapes_df['{}_vy{}'.format(shape_name, i)] = vertices[:, i, 1]
+
+
+def get_env_vertices(shape, ngon, df_env):
+    """
+    Helper function for make_shape_df
+    """
+    vertices = []
+    for x, y, r in df_env[[shape + '_x', shape + '_y', shape + '_r']].values:
+        vertices.append(sim_utils.get_vertices(ngon, 50, x, y, r))
+    vertices = np.stack(vertices)
+    return vertices

@@ -2,6 +2,10 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from plotnine import *
+import torch
+from . import utils
+from . import data_utils
+import math
 
 
 def plot_pred_target(prediction, target, sim_range=range(9),filename=None):
@@ -11,9 +15,10 @@ def plot_pred_target(prediction, target, sim_range=range(9),filename=None):
     :sim_range: index numbers of simulation to plot
     :return: plot the path of target and prediction
     """
+
     df = pd.DataFrame()
     for i in sim_range:
-        df_pred = pd.DataFrame(prediction[i].data.cpu().numpy(),columns = ['px', 'py'])
+        df_pred = pd.DataFrame(prediction[i,:,:2].data.cpu().numpy(),columns = ['px', 'py'])
         df_pred['source'] = 'pred'
         df_target = pd.DataFrame(target[i].data.cpu().numpy(),columns = ['px', 'py'])
         df_target['source'] = 'target'
@@ -24,7 +29,8 @@ def plot_pred_target(prediction, target, sim_range=range(9),filename=None):
     p = (ggplot(df, aes('px', 'py', color = 'source', grouping = 'run'))
         + geom_path(alpha = .2)
         +geom_point(alpha = .2)
-        +xlim(0, 10))
+        +xlim(0, 10)
+        +ylim(0, 10))
 
     if filename is not None:
         s = filename.split('/')
@@ -163,6 +169,73 @@ def plot_variance_over_time(sigma_overtime, sim_range= None, time_range = None,f
     else:
         print(p)
 
+def plot_pred_sim_target(prediction, simulation, target, env, sim_range=range(10), env_index = 0,
+                        alpha = .5, title = "Prediction vs. simulation vs. target", filename=None):
+    """
+    :prediction: a tensor list of predicted positions
+    :simulation: a tensor list of simulation results
+    :target: a tensor list of target
+    :env: a tensor list containing the environment information in (x, y, r)
+    :sim_range: index numbers of simulation to plot
+    :env_index: index of which world to plot
+    :return: plot the path of target and prediction
+    """
+    df_env_single = pd.DataFrame(env[env_index].data.cpu().numpy()[:9].reshape(1, 9), columns = ['triangle_x', 'triangle_y',
+        'triangle_r', 'rectangle_x', 'rectangle_y', 'rectangle_r', 'pentagon_x',
+        'pentagon_y', 'pentagon_r'])
+    df_env_trans = pd.DataFrame()
+    for col in df_env_single.columns:
+        if col[-1] == 'x' or col[-1] == 'y':
+            df_env_trans[col] = df_env_single[col] * 70
+        else:
+            df_env_trans[col] = df_env_single[col] * 2 * math.pi / 10
+    df_env_trans['simulation'] = 'sim_' + str(env_index)
+    df_env_shapes = data_utils.make_shape_df(df_env_trans)
+    df_env_shapes
+    df_env_shapes_long = pd.melt(df_env_shapes, id_vars='simulation')
+    new = df_env_shapes_long["variable"].str.split("_", n = 2, expand = True)
+    df_env_shapes_long["shape"]= new[0]
+    df_env_shapes_long["coordinates"]= new[1].str[:2]
+    df_env_shapes_long["number"]= df_env_shapes_long["variable"].str[-1:]
+    df_env_shapes_long = df_env_shapes_long.drop(columns = "variable")
+    df_env_shapes_long = df_env_shapes_long.pivot_table(index=['simulation', 'shape', 'number'], columns='coordinates',values='value').reset_index()
+    df_env_shapes_long = df_env_shapes_long.reset_index()
+
+
+    df = pd.DataFrame()
+    for i in sim_range:
+        df_pred = pd.DataFrame(prediction[i].data.cpu().numpy(),columns = ['px', 'py'])
+        df_pred['source'] = 'pred'
+        df_sim = pd.DataFrame(simulation[i].data.cpu().numpy(),columns = ['px', 'py'])
+        df_sim['source'] = 'sim'
+        df_target = pd.DataFrame(target[i].data.cpu().numpy(),columns = ['px', 'py'])
+        df_target['source'] = 'target'
+        df_combined = df_pred.append(df_sim)
+        df_combined = df_combined.append(df_target)
+        df_combined['run'] = str(i)
+        df = df.append(df_combined)
+    # revert back to the original size
+    df['px'] *= 70
+    df['py'] *= 70
+
+    p = (ggplot(df, aes('px', 'py', color = 'source', grouping = 'run'))
+        + geom_polygon(df_env_shapes_long, aes('vx', 'vy', fill = 'shape'), color = 'black', inherit_aes = False)
+        + geom_path(alpha = alpha)
+        # +geom_point(alpha = alpha)
+        + scale_x_continuous(limits = [0, 700], expand = [0, 0])
+        + scale_y_continuous(limits = [0, 650], expand = [0, 0])
+        + labs(title = title, x = 'x', y = 'y'))
+
+    if filename is not None:
+        s = filename.split('/')
+        path = '/'.join(s[:-1])
+        ggsave(filename = s[-1] + '.png',
+               path = path,
+               plot = p,
+               device = 'png',
+               dpi = 300, limitsize = True)
+    else:
+        print(p)
 
 def plot_trainlosses(losses, title = 'training loss',filename=None):
     """

@@ -128,4 +128,5 @@ dmypy.json
 .pyre/
 .Rproj.user
 experiments/gru_cv/*
+experiments/*
 data/*

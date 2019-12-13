@@ -9,7 +9,7 @@ from pymunk import Vec2d
 
 # import files
 from . import utils
-from . import visual
+# from . import visual
 
 shape_code = {'walls': 0,
               'ground': 1,

@@ -41,7 +41,7 @@ class MLP(nn.Module):
     def forward(self, *inputs):
         if len(inputs) == 1:
             x = inputs[0]
-        else:
+        else: #what if input is a batch dimensional array?
             x = torch.cat(inputs, dim=-1)
 
         if type(self.activation) is list:
@@ -52,9 +52,9 @@ class MLP(nn.Module):
                 if len(self.activation) < i:
                     raise NameError('check number of activation functions')
         else:
-            for layer in self.layers:
+            for layer in self.layers[:-1]:
                 x = self.activation(layer(x))
-
+            x = self.layers[-1](x)
 
         if len(self.output_size) is 1:
             return x
