@@ -9,6 +9,7 @@ output: html_document
 library(tidyverse)
 library(png)
 library(grid)
+library(rjson)
 ```
 
 ```{r write human data to csv}
@@ -132,4 +133,42 @@ write_csv(df.collisions, str_c(path_data_gdrive, "/worlds/collision_times.csv"))
 ```
 
 
+
+
+```{r plot ground truth}
+world_index = 48
+gt_path <- "C:/Users/tepzh/Dropbox/Stanford/CS229 machine learning/project/plinko_traking_Tobi/plinko_tracking/data/experiment_1/stimuli/ground_truth"
+
+ground_truth <- fromJSON(file = str_c(gt_path, "/world_", world_index, ".json"))
+
+
+df.ground_truth <- as.data.frame(ground_truth$simulation[[1]]$ball$position) %>% 
+  gather(key, position) %>% 
+  mutate(direction = rep(c('y', 'x'), nrow(.) /2),
+         time = rep(seq(nrow(.) / 2), each = 2)) %>% 
+  select(-key) %>% 
+  spread(direction, position) %>% 
+  mutate(x = x *6/7,
+         y = y *6/7 - 60)
+
+
+
+
+image = readPNG(str_c("C:/Users/tepzh/Dropbox/Stanford/CS229 machine learning/project/plinko_traking_Tobi/plinko_tracking/figures/images/png/initial/world_", world_index, ".png"))
+
+
+ggplot(df.ground_truth, aes(x = x, y = y))+
+  annotation_custom(rasterGrob(image,
+                               width = unit(1,"npc"),
+                               height = unit(1,"npc")),
+                    -Inf, Inf, -Inf, Inf) +
+  geom_point(alpha = .5, size = 2)+
+  geom_path(alpha = .5)+
+  scale_x_continuous(limits = c(0, 600), expand = c(0, 0)) +
+  scale_y_continuous(limits = c(0, 500), expand = c(0, 0)) +
+  theme_void()+
+  theme(legend.position='none')
+
+ggsave(str_c("ground_truth_world48.png"), width = 6, height = 5)
+```
 

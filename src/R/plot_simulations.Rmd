@@ -12,17 +12,20 @@ library(tidyverse)
 
 ```{r set file paths}
 path_simulations <- "../../data/simulations"
+
 ```
 
 ```{r read data}
 simulations_ball <- read_feather(str_c(path_simulations, "/sim_ball.feather"))
-simulations_ball %>% glimpse()
+# simulations_ball %>% glimpse()
 simulations_ball %>% names()
 
 simulation_collisions <- read_feather(str_c(path_simulations, "/sim_collisions.feather"))
 simulation_environment <- read_feather(str_c(path_simulations,
                                              "/sim_environment.feather"))
 # ht_ball <- read_feather(str_c(path_simulations, "/ht_ball.feather"))
+
+
 ```
 
 ```{r plot simulation}
@@ -56,14 +59,14 @@ plot_simulation <- function(sim_ball, sim_env, sim_index){
           axis.title = element_blank(),
           panel.border = element_rect(colour = "black", fill=NA, size=2))
   
-  ggsave(str_c("../../figures/plots/simulations/", sim_index,
-               ".png"), width = 3, height = 2.5)
+  # ggsave(str_c("../../figures/plots/simulations/", sim_index,
+  #              ".png"), width = 3, height = 2.5)
   }
 
 
 # plot simulations
 sim_indices = simulation_environment$simulation %>% unique()
-temp_result <- sapply(sim_indices[1:20], 
+sapply(sim_indices[1], 
        function(x) plot_simulation(sim_ball = simulations_ball,
        sim_env = simulation_environment,
        sim_index = x))
