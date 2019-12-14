@@ -58,7 +58,7 @@ def simulate_model(model, dataset, sim_t = 1):
 
 def plot_pred_sim_target(prediction, simulation, target, env, sim_range=range(10), env_index = 0,
                         size = 1, alpha = .5, leg_position = 'none',
-                         title = "Prediction vs. simulation vs. target", filename=None):
+                         title = "Prediction vs. simulation vs. target", filename=None, file_width=8, file_height=6):
     """
     :prediction: a tensor list of predicted positions
     :simulation: a tensor list of simulation results
@@ -119,6 +119,8 @@ def plot_pred_sim_target(prediction, simulation, target, env, sim_range=range(10
     if filename is not None:
         ggsave(filename=filename,
                 plot=p,
+                width=file_width,
+                height=file_height,
                 device='png')
 
 def plot_pred_gaussian(pred_mu, target, sigma, sim_index = 0, alpha = .3, 
